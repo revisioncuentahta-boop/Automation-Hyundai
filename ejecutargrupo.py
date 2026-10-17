@@ -10,21 +10,36 @@ import google.generativeai as genai
 import firebase_admin
 from firebase_admin import credentials, firestore
 
-# Global DB para actualizar monitoreo
 db = None
+
+def inicializar_firebase():
+    global db
+    if not firebase_admin._apps:
+        if "FIREBASE_CREDENTIALS" in os.environ:
+            cred_json = json.loads(os.environ["FIREBASE_CREDENTIALS"])
+            cred = credentials.Certificate(cred_json)
+        else:
+            cred = credentials.Certificate("firebase_key.json")
+        firebase_admin.initialize_app(cred)
+    db = firestore.client()
+
+def verificar_sistema_pausado():
+    global db
+    try:
+        doc = db.collection("config").document("global").get()
+        if doc.exists:
+            datos = doc.to_dict()
+            if datos.get("automatizacion_pausada", False):
+                print("🛑 La automatización se encuentra PAUSADA desde el Panel de Control Móvil. Cancelando ejecución.")
+                return True
+    except Exception as e:
+        print(f"⚠️ No se pudo verificar el estado de pausa global: {e}")
+    return False
 
 def obtener_cuentas(num_grupo):
     global db
     try:
-        if not firebase_admin._apps:
-            if "FIREBASE_CREDENTIALS" in os.environ:
-                cred_json = json.loads(os.environ["FIREBASE_CREDENTIALS"])
-                cred = credentials.Certificate(cred_json)
-            else:
-                cred = credentials.Certificate("firebase_key.json")
-            firebase_admin.initialize_app(cred)
-
-        db = firestore.client()
+        inicializar_firebase()
         docs = db.collection("tecnicos")\
                  .where("grupo", "==", str(num_grupo))\
                  .where("activo", "==", True).stream()
@@ -116,6 +131,12 @@ async def main():
     print(f"🚀 Iniciando revisión del GRUPO {num_grupo}...")
 
     cuentas = obtener_cuentas(num_grupo)
+    
+    # Verificar si el administrador pausó todo el sistema
+    if verificar_sistema_pausado():
+        actualizar_monitoreo(en_proceso=False, usuario_actual="SISTEMA PAUSADO", progreso="0/0", total=0)
+        return
+
     total_cuentas = len(cuentas)
     fallos = []
 
@@ -127,6 +148,13 @@ async def main():
         page = await context.new_page()
 
         for idx, cuenta in enumerate(cuentas, start=1):
+            # Re-verificar estado de pausa en tiempo real
+            if verificar_sistema_pausado():
+                print("🛑 Ejecución detenida en mitad del proceso por orden del administrador.")
+                await browser.close()
+                actualizar_monitoreo(en_proceso=False, usuario_actual="PAUSADO EN VIVO", progreso=f"{idx}/{total_cuentas}", total=total_cuentas)
+                return
+
             actualizar_monitoreo(
                 en_proceso=True, 
                 usuario_actual=cuenta["usuario"], 
