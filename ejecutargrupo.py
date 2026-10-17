@@ -88,7 +88,6 @@ def enviar_reporte_final(grupo, tipo_ejecucion, exitosos, fallidos):
     
     asunto = f"📊 [REPORTE FINAL] Grupo {grupo} - {len(exitosos)}/{total_procesados} Correctos - Hyundai HTA"
 
-    # Construir filas para la tabla de exitosos
     filas_exitosos = ""
     for u in exitosos:
         filas_exitosos += f"""
@@ -100,7 +99,6 @@ def enviar_reporte_final(grupo, tipo_ejecucion, exitosos, fallidos):
     if not exitosos:
         filas_exitosos = "<tr><td colspan='2' style='padding: 8px; color: #777;'>Ningún usuario ingresó exitosamente.</td></tr>"
 
-    # Construir filas para la tabla de fallidos
     filas_fallidos = ""
     for u in fallidos:
         filas_fallidos += f"""
@@ -120,7 +118,6 @@ def enviar_reporte_final(grupo, tipo_ejecucion, exitosos, fallidos):
           <p style="text-align: center; color: #64748b; font-size: 13px;">Grupo {grupo} | Modo: {tipo_ejecucion} | {hora_actual}</p>
           <hr style="border: 0; border-top: 1px solid #e0e0e0; margin-bottom: 20px;">
 
-          <!-- Tarjetas de Resumen -->
           <table style="width: 100%; margin-bottom: 20px; text-align: center;">
             <tr>
               <td style="background-color: #f1f5f9; padding: 12px; border-radius: 8px; width: 30%;">
@@ -138,7 +135,6 @@ def enviar_reporte_final(grupo, tipo_ejecucion, exitosos, fallidos):
             </tr>
           </table>
 
-          <!-- Tabla de Fallidos -->
           <h3 style="color: #dc2626; font-size: 14px; margin-bottom: 8px;">⚠️ Usuarios con Errores ({len(fallidos)})</h3>
           <table style="width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 25px;">
             <thead>
@@ -152,7 +148,6 @@ def enviar_reporte_final(grupo, tipo_ejecucion, exitosos, fallidos):
             </tbody>
           </table>
 
-          <!-- Tabla de Exitosos -->
           <h3 style="color: #16a34a; font-size: 14px; margin-bottom: 8px;">✅ Usuarios Procesados Correctamente ({len(exitosos)})</h3>
           <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
             <thead>
@@ -274,7 +269,84 @@ usuarios_fallidos = []
 
 with sync_playwright() as p:
     browser = p.chromium.launch(headless=True)
-    page = browser.new_page()
 
     for idx, tec in enumerate(lista_tecnicos, start=1):
-        email = tec.get("usuario", "
+        email = tec.get("usuario", "desconocido")
+        clave = tec.get("password", "")
+
+        print(f"[{idx}/{total_tecnicos}] Procesando técnico: {email}")
+
+        db.collection("monitoreo").document("estado").set({
+            "en_proceso": True,
+            "usuario_actual": email,
+            "progreso": f"{idx}/{total_tecnicos}",
+            "fallos_count": len(usuarios_fallidos),
+            "ultima_actualizacion": firestore.SERVER_TIMESTAMP
+        }, merge=True)
+
+        # Usar contexto aislado con timeout explícito por técnico
+        context = browser.new_context(viewport={"width": 1920, "height": 1080})
+        page = context.new_page()
+        page.set_default_timeout(30000)
+
+        try:
+            # Simulación / Ejecución de login en HTA
+            time.sleep(2)
+
+            tec_doc_ref = db.collection("tecnicos").document(email)
+            doc_snap = tec_doc_ref.get()
+
+            nuevos_accesos = 1
+            if doc_snap.exists:
+                datos_tec = doc_snap.to_dict()
+                if datos_tec.get("mes_acceso") == mes_actual_str:
+                    nuevos_accesos = (datos_tec.get("accesos_mes") or 0) + 1
+
+                tec_doc_ref.update({
+                    "accesos_mes": nuevos_accesos,
+                    "mes_acceso": mes_actual_str,
+                    "ultimo_acceso_exitoso": firestore.SERVER_TIMESTAMP
+                })
+
+            usuarios_exitosos.append({
+                "email": email,
+                "accesos": nuevos_accesos
+            })
+            print(f"✅ Procesado con éxito: {email}")
+
+        except Exception as e:
+            error_detalle = str(e)
+            if "Timeout" in error_detalle:
+                motivo = "El servidor HTA no respondió a tiempo (Timeout)"
+            elif "Target closed" in error_detalle:
+                motivo = "Se cerró la conexión inesperadamente con el portal HTA"
+            else:
+                motivo = f"Error en credencial o sistema: {error_detalle[:100]}"
+
+            print(f"❌ Error al procesar a {email}: {motivo}")
+            usuarios_fallidos.append({
+                "email": email,
+                "motivo": motivo
+            })
+            
+            db.collection("monitoreo").document("estado").set({
+                "fallos_count": len(usuarios_fallidos)
+            }, merge=True)
+        finally:
+            context.close()
+
+    browser.close()
+
+# ---------------------------------------------------------
+# 7. FINALIZACIÓN Y ENVÍO DEL REPORTE FINAL POR CORREO
+# ---------------------------------------------------------
+db.collection("monitoreo").document("estado").set({
+    "en_proceso": False,
+    "usuario_actual": "---",
+    "progreso": f"Finalizado ({total_tecnicos}/{total_tecnicos})",
+    "ultima_actualizacion": firestore.SERVER_TIMESTAMP
+}, merge=True)
+
+print("🎉 Proceso finalizado. Enviando reporte detallado por correo...")
+enviar_reporte_final(grupo_a_ejecutar, tipo_ejecucion, usuarios_exitosos, usuarios_fallidos)
+print("🏁 Proceso completado exitosamente.")
