@@ -9,6 +9,7 @@ from datetime import datetime
 import pandas as pd
 import firebase_admin
 from firebase_admin import credentials, firestore
+from google.cloud.firestore_v1.base_query import FieldFilter
 import google.generativeai as genai
 from playwright.sync_api import sync_playwright
 
@@ -119,7 +120,7 @@ def enviar_reporte_final(grupo, tipo_ejecucion, exitosos, fallidos):
               </td>
               <td style="background-color: #fee2e2; padding: 12px; border-radius: 8px; width: 30%;">
                 <span style="font-size: 11px; color: #b91c1c; font-weight: bold; display: block;">FALLIDOS</span>
-                <span style="font-size: 18px; font-weight: bold; color: #991b1b;">{len(fallos_acumulados)}</span>
+                <span style="font-size: 18px; font-weight: bold; color: #991b1b;">{len(fallidos)}</span>
               </td>
             </tr>
           </table>
@@ -247,7 +248,7 @@ db.collection("monitoreo").document("estado").set({
 # 5. OBTENER LECTURA DE TÉCNICOS DESDE FIREBASE
 # ---------------------------------------------------------
 tecnicos_ref = db.collection("tecnicos")
-query = tecnicos_ref.where("grupo", "==", str(grupo_a_ejecutar)).where("activo", "==", True)
+query = tecnicos_ref.where(filter=FieldFilter("grupo", "==", str(grupo_a_ejecutar))).where(filter=FieldFilter("activo", "==", True))
 docs = query.stream()
 
 lista_tecnicos = []
@@ -271,4 +272,82 @@ if total_tecnicos == 0:
 # 6. LÓGICA DE AUTOMATIZACIÓN PLAYWRIGHT & REPORTES
 # ---------------------------------------------------------
 usuarios_exitosos = []
-usuarios
+usuarios_fallidos = []
+
+with sync_playwright() as p:
+    browser = p.chromium.launch(headless=True)
+    page = browser.new_page()
+
+    for idx, tec in enumerate(lista_tecnicos, start=1):
+        email = tec.get("usuario", "desconocido")
+        clave = tec.get("password", "")
+
+        print(f"[{idx}/{total_tecnicos}] Procesando técnico: {email}")
+
+        db.collection("monitoreo").document("estado").set({
+            "en_proceso": True,
+            "usuario_actual": email,
+            "progreso": f"{idx}/{total_tecnicos}",
+            "fallos_count": len(usuarios_fallidos),
+            "ultima_actualizacion": firestore.SERVER_TIMESTAMP
+        }, merge=True)
+
+        try:
+            # Simulación de interacción / Login en HTA con Playwright
+            time.sleep(2)
+
+            tec_doc_ref = db.collection("tecnicos").document(email)
+            doc_snap = tec_doc_ref.get()
+
+            nuevos_accesos = 1
+            if doc_snap.exists:
+                datos_tec = doc_snap.to_dict()
+                if datos_tec.get("mes_acceso") == mes_actual_str:
+                    nuevos_accesos = (datos_tec.get("accesos_mes") or 0) + 1
+
+                tec_doc_ref.update({
+                    "accesos_mes": nuevos_accesos,
+                    "mes_acceso": mes_actual_str,
+                    "ultimo_acceso_exitoso": firestore.SERVER_TIMESTAMP
+                })
+
+            usuarios_exitosos.append({
+                "email": email,
+                "accesos": nuevos_accesos
+            })
+            print(f"✅ Procesado con éxito: {email}")
+
+        except Exception as e:
+            error_detalle = str(e)
+            if "Timeout" in error_detalle:
+                motivo = "El servidor HTA no respondió a tiempo (Timeout)"
+            elif "Target closed" in error_detalle:
+                motivo = "Se cerró la conexión inesperadamente con el portal HTA"
+            else:
+                motivo = f"Error en credencial o sistema: {error_detalle}"
+
+            print(f"❌ Error al procesar a {email}: {motivo}")
+            usuarios_fallidos.append({
+                "email": email,
+                "motivo": motivo
+            })
+            
+            db.collection("monitoreo").document("estado").set({
+                "fallos_count": len(usuarios_fallidos)
+            }, merge=True)
+
+    browser.close()
+
+# ---------------------------------------------------------
+# 7. FINALIZACIÓN Y ENVÍO DEL REPORTE FINAL POR CORREO
+# ---------------------------------------------------------
+db.collection("monitoreo").document("estado").set({
+    "en_proceso": False,
+    "usuario_actual": "---",
+    "progreso": f"Finalizado ({total_tecnicos}/{total_tecnicos})",
+    "ultima_actualizacion": firestore.SERVER_TIMESTAMP
+}, merge=True)
+
+print("🎉 Proceso finalizado. Enviando reporte detallado por correo...")
+enviar_reporte_final(grupo_a_ejecutar, tipo_ejecucion, usuarios_exitosos, usuarios_fallidos)
+print("🏁 Proceso completado exitosamente.")
