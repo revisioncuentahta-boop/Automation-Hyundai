@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hyundai Monitor App</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+</head>
+<body class="bg-gray-900 text-white min-h-screen p-4 font-sans">
+    <div class="max-w-md mx-auto space-y-6">
+        
+        <!-- Encabezado -->
+        <div class="flex justify-between items-center border-b border-gray-800 pb-4">
+            <div>
+                <h1 class="text-xl font-bold text-blue-400">Hyundai Monitor</h1>
+                <p class="text-xs text-gray-400">Panel de Control Móvil</p>
+            </div>
+            <span id="status-badge" class="px-3 py-1 rounded-full text-xs font-semibold bg-gray-800 text-gray-400">
+                Cargando...
+            </span>
+        </div>
+
+        <!-- Estado de Ejecución en Tiempo Real -->
+        <div class="bg-gray-800 p-4 rounded-xl border border-gray-700 shadow-lg space-y-3">
+            <h2 class="text-sm font-semibold text-gray-300">ESTADO EN TIEMPO REAL</h2>
+            <div id="live-container" class="space-y-2">
+                <div class="flex justify-between text-sm">
+                    <span class="text-gray-400">Usuario actual:</span>
+                    <span id="usuario-actual" class="font-mono text-blue-300 font-bold">---</span>
+                </div>
+                <div class="flex justify-between text-sm">
+                    <span class="text-gray-400">Progreso:</span>
+                    <span id="progreso-texto" class="font-bold">0/0</span>
+                </div>
+                <div class="flex justify-between text-sm">
+                    <span class="text-gray-400">Fallos detectados:</span>
+                    <span id="fallos-count" class="text-red-400 font-bold">0</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sección de Administración de Usuarios -->
+        <div class="space-y-3">
+            <div class="flex justify-between items-center">
+                <h2 class="text-sm font-semibold text-gray-300">TÉCNICOS / USUARIOS</h2>
+                <button onclick="toggleModal()" class="bg-blue-600 hover:bg-blue-500 px-3 py-1.5 rounded-lg text-xs font-bold shadow">
+                    + Nuevo Usuario
+                </button>
+            </div>
+
+            <!-- Buscador -->
+            <input type="text" id="searchInput" onkeyup="filtrarUsuarios()" placeholder="🔍 Buscar por correo..." 
+                   class="w-full bg-gray-800 border border-gray-700 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-blue-500">
+
+            <!-- Lista de Usuarios -->
+            <div id="users-list" class="space-y-2 max-h-96 overflow-y-auto pr-1">
+                <p class="text-xs text-gray-500 text-center py-4">Cargando lista de técnicos...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Agregar Usuario -->
+    <div id="userModal" class="fixed inset-0 bg-black/80 hidden items-center justify-center p-4">
+        <div class="bg-gray-800 p-6 rounded-xl w-full max-w-sm space-y-4 border border-gray-700">
+            <h3 class="text-lg font-bold text-blue-400">Agregar Técnico</h3>
+            <div>
+                <label class="text-xs text-gray-400">Correo Electrónico</label>
+                <input type="email" id="modalEmail" placeholder="ej. tecnico@hyundai.com" class="w-full bg-gray-900 border border-gray-700 rounded p-2 text-sm text-white mt-1">
+            </div>
+            <div>
+                <label class="text-xs text-gray-400">Contraseña</label>
+                <input type="text" id="modalPass" placeholder="Contraseña" class="w-full bg-gray-900 border border-gray-700 rounded p-2 text-sm text-white mt-1">
+            </div>
+            <div>
+                <label class="text-xs text-gray-400">Grupo de Día</label>
+                <select id="modalGrupo" class="w-full bg-gray-900 border border-gray-700 rounded p-2 text-sm text-white mt-1">
+                    <option value="1">Grupo 1 (Lunes)</option>
+                    <option value="2">Grupo 2 (Martes)</option>
+                    <option value="3">Grupo 3 (Miércoles)</option>
+                    <option value="4">Grupo 4 (Jueves)</option>
+                    <option value="5">Grupo 5 (Viernes)</option>
+                </select>
+            </div>
+            <div class="flex justify-end space-x-2 pt-2">
+                <button onclick="toggleModal()" class="px-4 py-2 text-xs text-gray-400">Cancelar</button>
+                <button onclick="guardarUsuario()" class="bg-blue-600 px-4 py-2 rounded text-xs font-bold shadow">Guardar</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Configuración oficial de tu proyecto Firebase
+        const firebaseConfig = {
+            apiKey: "AIzaSyDj9oOsf_bRdJbMYHDdQOlbQPjMEoSzc_U",
+            authDomain: "hyundai-monitor-bf294.firebaseapp.com",
+            databaseURL: "https://hyundai-monitor-bf294-default-rtdb.firebaseio.com",
+            projectId: "hyundai-monitor-bf294",
+            storageBucket: "hyundai-monitor-bf294.firebasestorage.app",
+            messagingSenderId: "99341563511",
+            appId: "1:99341563511:web:5a767cca4f3a54c615f872",
+            measurementId: "G-4P8JXS4Y04"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        let todosUsuarios = [];
+
+        // Monitoreo en vivo del estado de ejecución
+        db.collection("monitoreo").doc("estado").onSnapshot(doc => {
+            if (doc.exists) {
+                const data = doc.data();
+                const badge = document.getElementById("status-badge");
+                if (data.en_proceso) {
+                    badge.className = "px-3 py-1 rounded-full text-xs font-semibold bg-green-500/20 text-green-400 animate-pulse";
+                    badge.innerText = "🟢 EN EJECUCIÓN";
+                } else {
+                    badge.className = "px-3 py-1 rounded-full text-xs font-semibold bg-gray-800 text-gray-400";
+                    badge.innerText = "⚪ INACTIVO";
+                }
+                document.getElementById("usuario-actual").innerText = data.usuario_actual || "---";
+                document.getElementById("progreso-texto").innerText = data.progreso || "0/0";
+                document.getElementById("fallos-count").innerText = data.fallos_count || "0";
+            }
+        });
+
+        // Cargar lista de técnicos desde Firestore
+        function cargarUsuarios() {
+            db.collection("tecnicos").onSnapshot(snapshot => {
+                todosUsuarios = [];
+                snapshot.forEach(doc => {
+                    todosUsuarios.push({ id: doc.id, ...doc.data() });
+                });
+                renderUsuarios(todosUsuarios);
+            });
+        }
+
+        function renderUsuarios(lista) {
+            const container = document.getElementById("users-list");
+            container.innerHTML = "";
+            lista.forEach(u => {
+                const card = document.createElement("div");
+                card.className = "bg-gray-800 p-3 rounded-lg border border-gray-700 flex justify-between items-center";
+                card.innerHTML = `
+                    <div>
+                        <p class="text-sm font-bold text-gray-200">${u.usuario}</p>
+                        <p class="text-xs text-gray-400">Clave: ${u.password} | Grupo: ${u.grupo}</p>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <button onclick="toggleActivo('${u.id}', ${u.activo})" class="px-2 py-1 text-xs rounded font-semibold ${u.activo ? 'bg-green-600/20 text-green-400 border border-green-500/30' : 'bg-red-600/20 text-red-400 border border-red-500/30'}">
+                            ${u.activo ? 'Activo' : 'Inactivo'}
+                        </button>
+                        <button onclick="eliminarUsuario('${u.id}')" class="text-red-400 hover:text-red-300 text-xs px-1">🗑️</button>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function filtrarUsuarios() {
+            const query = document.getElementById("searchInput").value.toLowerCase();
+            const filtrados = todosUsuarios.filter(u => u.usuario.toLowerCase().includes(query));
+            renderUsuarios(filtrados);
+        }
+
+        function toggleModal() {
+            const modal = document.getElementById("userModal");
+            modal.classList.toggle("hidden");
+            modal.classList.toggle("flex");
+        }
+
+        function guardarUsuario() {
+            const usuario = document.getElementById("modalEmail").value.trim();
+            const password = document.getElementById("modalPass").value.trim();
+            const grupo = document.getElementById("modalGrupo").value;
+
+            if (usuario && password) {
+                db.collection("tecnicos").doc(usuario).set({
+                    usuario: usuario,
+                    password: password,
+                    grupo: grupo,
+                    activo: true
+                }).then(() => {
+                    toggleModal();
+                    document.getElementById("modalEmail").value = "";
+                    document.getElementById("modalPass").value = "";
+                });
+            } else {
+                alert("Por favor completa el usuario y la contraseña.");
+            }
+        }
+
+        function toggleActivo(id, estadoActual) {
+            db.collection("tecnicos").doc(id).update({ activo: !estadoActual });
+        }
+
+        function eliminarUsuario(id) {
+            if (confirm(`¿Seguro que deseas eliminar a ${id}?`)) {
+                db.collection("tecnicos").doc(id).delete();
+            }
+        }
+
+        cargarUsuarios();
+    </script>
+</body>
+</html>
