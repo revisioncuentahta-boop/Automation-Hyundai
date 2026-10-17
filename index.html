@@ -7,36 +7,69 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <style>
+        body {
+            background: linear-gradient(rgba(15, 23, 42, 0.88), rgba(15, 23, 42, 0.95)), 
+                        url('https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?q=80&w=1200&auto=format&fit=crop');
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+        }
+    </style>
 </head>
-<body class="bg-gray-900 text-white min-h-screen p-4 font-sans">
-    <div class="max-w-md mx-auto space-y-6">
+<body class="text-white min-h-screen p-4 font-sans">
+    <div class="max-w-md mx-auto space-y-5">
         
-        <!-- Encabezado con Botón de Suspensión -->
-        <div class="flex justify-between items-center border-b border-gray-800 pb-4">
+        <!-- Encabezado -->
+        <div class="flex justify-between items-center border-b border-gray-700/60 pb-3 backdrop-blur-sm">
             <div>
-                <h1 class="text-xl font-bold text-blue-400">Hyundai Monitor</h1>
-                <p class="text-xs text-gray-400">Panel de Control Móvil</p>
+                <h1 class="text-xl font-black tracking-wider text-blue-400 uppercase flex items-center gap-1.5">
+                    🏎️ Hyundai Monitor
+                </h1>
+                <p class="text-xs text-gray-400 font-medium">Panel de Control WRC / HTA</p>
             </div>
-            <span id="status-badge" class="px-3 py-1 rounded-full text-xs font-semibold bg-gray-800 text-gray-400">
+            <span id="status-badge" class="px-3 py-1 rounded-full text-xs font-bold bg-gray-800/80 text-gray-400 border border-gray-700">
                 Cargando...
             </span>
         </div>
 
         <!-- Botón Maestro de Suspensión General -->
-        <div id="pause-banner" class="bg-gray-800 p-3 rounded-xl border border-gray-700 flex justify-between items-center shadow">
+        <div id="pause-banner" class="bg-gray-800/90 backdrop-blur p-3 rounded-xl border border-gray-700/80 flex justify-between items-center shadow-lg">
             <div>
-                <p class="text-xs text-gray-400 font-semibold">ESTADO DEL SISTEMA</p>
-                <p id="pause-status-text" class="text-sm font-bold text-green-400">🟢 Automatización Activa</p>
+                <p class="text-[10px] text-gray-400 uppercase font-black tracking-wider">Estado del Sistema</p>
+                <p id="pause-status-text" class="text-xs font-bold text-green-400">🟢 Automatización Activa</p>
             </div>
             <button id="btn-toggle-pause" onclick="togglePausarSistema()" 
-                    class="bg-yellow-600/20 hover:bg-yellow-600/30 text-yellow-300 border border-yellow-500/40 px-3 py-1.5 rounded-lg text-xs font-bold transition">
+                    class="bg-yellow-600/20 hover:bg-yellow-600/40 text-yellow-300 border border-yellow-500/40 px-3 py-1.5 rounded-lg text-xs font-bold transition">
                 ⏸️ Suspender
             </button>
         </div>
 
+        <!-- Sección de Ejecución Manual por Grupo/Día -->
+        <div class="bg-gray-800/90 backdrop-blur p-3.5 rounded-xl border border-gray-700/80 shadow-lg space-y-2">
+            <p class="text-[10px] text-blue-400 font-black uppercase tracking-wider">⚡ Iniciar Ejecución Manual por Día</p>
+            <div class="grid grid-cols-5 gap-1.5 text-xs">
+                <button onclick="ejecutarGrupoManual('1', 'Lunes')" class="bg-blue-600/30 hover:bg-blue-600/50 border border-blue-500/50 text-blue-200 py-2 rounded-lg font-bold text-center">
+                    Lun
+                </button>
+                <button onclick="ejecutarGrupoManual('2', 'Martes')" class="bg-blue-600/30 hover:bg-blue-600/50 border border-blue-500/50 text-blue-200 py-2 rounded-lg font-bold text-center">
+                    Mar
+                </button>
+                <button onclick="ejecutarGrupoManual('3', 'Miércoles')" class="bg-blue-600/30 hover:bg-blue-600/50 border border-blue-500/50 text-blue-200 py-2 rounded-lg font-bold text-center">
+                    Mié
+                </button>
+                <button onclick="ejecutarGrupoManual('4', 'Jueves')" class="bg-blue-600/30 hover:bg-blue-600/50 border border-blue-500/50 text-blue-200 py-2 rounded-lg font-bold text-center">
+                    Jue
+                </button>
+                <button onclick="ejecutarGrupoManual('5', 'Viernes')" class="bg-blue-600/30 hover:bg-blue-600/50 border border-blue-500/50 text-blue-200 py-2 rounded-lg font-bold text-center">
+                    Vie
+                </button>
+            </div>
+        </div>
+
         <!-- Estado de Ejecución en Tiempo Real -->
-        <div class="bg-gray-800 p-4 rounded-xl border border-gray-700 shadow-lg space-y-3">
-            <h2 class="text-sm font-semibold text-gray-300">ESTADO EN TIEMPO REAL</h2>
+        <div class="bg-gray-800/90 backdrop-blur p-4 rounded-xl border border-gray-700/80 shadow-lg space-y-3">
+            <h2 class="text-xs font-black text-gray-300 uppercase tracking-wider">Estado en Tiempo Real</h2>
             <div id="live-container" class="space-y-2">
                 <div class="flex justify-between text-sm">
                     <span class="text-gray-400">Usuario actual:</span>
@@ -56,8 +89,8 @@
         <!-- Sección de Administración de Usuarios -->
         <div class="space-y-3">
             <div class="flex justify-between items-center">
-                <h2 class="text-sm font-semibold text-gray-300">TÉCNICOS / USUARIOS</h2>
-                <button onclick="toggleModal()" class="bg-blue-600 hover:bg-blue-500 px-3 py-1.5 rounded-lg text-xs font-bold shadow">
+                <h2 class="text-xs font-black text-gray-300 uppercase tracking-wider">Técnicos / Usuarios</h2>
+                <button onclick="toggleModal()" class="bg-blue-600 hover:bg-blue-500 px-3 py-1.5 rounded-lg text-xs font-bold shadow-md">
                     + Nuevo Usuario
                 </button>
             </div>
@@ -65,12 +98,12 @@
             <!-- Buscador y Filtros -->
             <div class="space-y-2">
                 <input type="text" id="searchInput" onkeyup="filtrarUsuarios()" placeholder="🔍 Buscar por correo..." 
-                       class="w-full bg-gray-800 border border-gray-700 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-blue-500">
+                       class="w-full bg-gray-800/90 border border-gray-700 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-blue-500">
                 
                 <div class="flex space-x-2 text-xs">
-                    <button onclick="setFiltro('todos')" id="btn-filtro-todos" class="px-3 py-1 rounded bg-blue-600 font-bold">Todos</button>
-                    <button onclick="setFiltro('activos')" id="btn-filtro-activos" class="px-3 py-1 rounded bg-gray-800 text-gray-400">Activos</button>
-                    <button onclick="setFiltro('inactivos')" id="btn-filtro-inactivos" class="px-3 py-1 rounded bg-gray-800 text-gray-400">Inactivos</button>
+                    <button onclick="setFiltro('todos')" id="btn-filtro-todos" class="px-3 py-1 rounded-lg bg-blue-600 font-bold">Todos</button>
+                    <button onclick="setFiltro('activos')" id="btn-filtro-activos" class="px-3 py-1 rounded-lg bg-gray-800/90 text-gray-400">Activos</button>
+                    <button onclick="setFiltro('inactivos')" id="btn-filtro-inactivos" class="px-3 py-1 rounded-lg bg-gray-800/90 text-gray-400">Inactivos</button>
                 </div>
             </div>
 
@@ -82,20 +115,20 @@
     </div>
 
     <!-- Modal Agregar Usuario -->
-    <div id="userModal" class="fixed inset-0 bg-black/80 hidden items-center justify-center p-4 z-50">
-        <div class="bg-gray-800 p-6 rounded-xl w-full max-w-sm space-y-4 border border-gray-700">
+    <div id="userModal" class="fixed inset-0 bg-black/80 hidden items-center justify-center p-4 z-50 backdrop-blur-sm">
+        <div class="bg-gray-800 p-6 rounded-xl w-full max-w-sm space-y-4 border border-gray-700 shadow-2xl">
             <h3 class="text-lg font-bold text-blue-400">Agregar Técnico</h3>
             <div>
                 <label class="text-xs text-gray-400">Correo Electrónico</label>
-                <input type="email" id="modalEmail" placeholder="ej. tecnico@hyundai.com" class="w-full bg-gray-900 border border-gray-700 rounded p-2 text-sm text-white mt-1">
+                <input type="email" id="modalEmail" placeholder="ej. tecnico@hyundai.com" class="w-full bg-gray-900 border border-gray-700 rounded-lg p-2 text-sm text-white mt-1">
             </div>
             <div>
                 <label class="text-xs text-gray-400">Contraseña</label>
-                <input type="text" id="modalPass" value="Automotor*2026" class="w-full bg-gray-900 border border-gray-700 rounded p-2 text-sm text-white mt-1">
+                <input type="text" id="modalPass" value="Automotor*2026" class="w-full bg-gray-900 border border-gray-700 rounded-lg p-2 text-sm text-white mt-1">
             </div>
             <div>
                 <label class="text-xs text-gray-400">Grupo de Día</label>
-                <select id="modalGrupo" class="w-full bg-gray-900 border border-gray-700 rounded p-2 text-sm text-white mt-1">
+                <select id="modalGrupo" class="w-full bg-gray-900 border border-gray-700 rounded-lg p-2 text-sm text-white mt-1">
                     <option value="1">Grupo 1 (Lunes)</option>
                     <option value="2">Grupo 2 (Martes)</option>
                     <option value="3">Grupo 3 (Miércoles)</option>
@@ -105,7 +138,7 @@
             </div>
             <div class="flex justify-end space-x-2 pt-2">
                 <button onclick="toggleModal()" class="px-4 py-2 text-xs text-gray-400">Cancelar</button>
-                <button onclick="guardarUsuario()" class="bg-blue-600 px-4 py-2 rounded text-xs font-bold shadow">Guardar</button>
+                <button onclick="guardarUsuario()" class="bg-blue-600 px-4 py-2 rounded-lg text-xs font-bold shadow">Guardar</button>
             </div>
         </div>
     </div>
@@ -141,12 +174,12 @@
             const btn = document.getElementById("btn-toggle-pause");
             if (sistemaPausado) {
                 txt.innerText = "🛑 Automatización Pausada";
-                txt.className = "text-sm font-bold text-red-400";
+                txt.className = "text-xs font-bold text-red-400";
                 btn.innerText = "▶️ Reanudar";
                 btn.className = "bg-green-600/20 hover:bg-green-600/30 text-green-300 border border-green-500/40 px-3 py-1.5 rounded-lg text-xs font-bold transition";
             } else {
                 txt.innerText = "🟢 Automatización Activa";
-                txt.className = "text-sm font-bold text-green-400";
+                txt.className = "text-xs font-bold text-green-400";
                 btn.innerText = "⏸️ Suspender";
                 btn.className = "bg-yellow-600/20 hover:bg-yellow-600/30 text-yellow-300 border border-yellow-500/40 px-3 py-1.5 rounded-lg text-xs font-bold transition";
             }
@@ -160,16 +193,29 @@
             }, { merge: true });
         }
 
+        // Solicitar ejecución manual de un grupo
+        function ejecutarGrupoManual(grupoNum, diaNombre) {
+            if (confirm(`¿Deseas solicitar la ejecución manual del Grupo ${grupoNum} (${diaNombre})?`)) {
+                db.collection("config").doc("ejecucion_manual").set({
+                    solicitado: true,
+                    grupo: grupoNum,
+                    fecha_solicitud: firebase.firestore.FieldValue.serverTimestamp()
+                }).then(() => {
+                    alert(`Solicitud enviada para el Grupo ${grupoNum} (${diaNombre}). La revisión iniciará en breve.`);
+                });
+            }
+        }
+
         // Monitoreo en vivo
         db.collection("monitoreo").doc("estado").onSnapshot(doc => {
             if (doc.exists) {
                 const data = doc.data();
                 const badge = document.getElementById("status-badge");
                 if (data.en_proceso) {
-                    badge.className = "px-3 py-1 rounded-full text-xs font-semibold bg-green-500/20 text-green-400 animate-pulse";
+                    badge.className = "px-3 py-1 rounded-full text-xs font-bold bg-green-500/20 text-green-400 border border-green-500/40 animate-pulse";
                     badge.innerText = "🟢 EN EJECUCIÓN";
                 } else {
-                    badge.className = "px-3 py-1 rounded-full text-xs font-semibold bg-gray-800 text-gray-400";
+                    badge.className = "px-3 py-1 rounded-full text-xs font-bold bg-gray-800/80 text-gray-400 border border-gray-700";
                     badge.innerText = "⚪ INACTIVO";
                 }
                 document.getElementById("usuario-actual").innerText = data.usuario_actual || "---";
@@ -193,9 +239,9 @@
             ['todos', 'activos', 'inactivos'].forEach(f => {
                 const btn = document.getElementById(`btn-filtro-${f}`);
                 if (f === tipo) {
-                    btn.className = "px-3 py-1 rounded bg-blue-600 font-bold text-white";
+                    btn.className = "px-3 py-1 rounded-lg bg-blue-600 font-bold text-white";
                 } else {
-                    btn.className = "px-3 py-1 rounded bg-gray-800 text-gray-400";
+                    btn.className = "px-3 py-1 rounded-lg bg-gray-800/90 text-gray-400";
                 }
             });
             filtrarUsuarios();
@@ -206,20 +252,18 @@
             container.innerHTML = "";
             lista.forEach(u => {
                 const card = document.createElement("div");
-                card.className = "bg-gray-800 p-3 rounded-lg border border-gray-700 space-y-2";
+                card.className = "bg-gray-800/90 backdrop-blur p-3 rounded-lg border border-gray-700/80 space-y-2 shadow-md";
                 
                 const asuntoEmail = encodeURIComponent("Notificación de Seguridad - Automatizacion de acceso de HTA fue cancelada");
                 const cuerpoEmail = encodeURIComponent(
                     `Estimado,\n\nLa automatización de su acceso a la plataforma Hyundai HTA ha quedado cancelada debido a un error de credenciales y/o del sistema.\n\nRecuerde que su contraseña debe ser Automotor*2026. Por favor, actualícela en el portal si no es esa contraseña, o comuníquese con Esteban Fernandez al 0993541374.\n\nEnviele un mensaje de whatsapp como este:\n"Hola Esteban, cambie mi contraseña y ya no es Automotor*2026, lo volvere a cambiar, o si lo cambias tu, avisame porfavor. Saludos"`
                 );
-                
-                const mensajeWhatsapp = encodeURIComponent("Hola Esteban, cambie mi contraseña y ya no me funciona el acceso. Por favor avisame para coordinar. Saludos.");
 
                 card.innerHTML = `
                     <div class="flex justify-between items-start">
                         <div>
                             <p class="text-sm font-bold text-gray-200">${u.usuario}</p>
-                            <p class="text-xs text-gray-400">Clave: <span class="font-mono text-yellow-300">${u.password}</span> | Grupo: ${u.grupo}</p>
+                            <p class="text-xs text-gray-400">Clave: <span class="font-mono text-yellow-300 font-bold">${u.password}</span> | Grupo: ${u.grupo}</p>
                         </div>
                         <div class="flex items-center space-x-1">
                             <button onclick="toggleActivo('${u.id}', ${u.activo})" class="px-2 py-1 text-xs rounded font-semibold ${u.activo ? 'bg-green-600/20 text-green-400 border border-green-500/30' : 'bg-red-600/20 text-red-400 border border-red-500/30'}">
@@ -229,14 +273,10 @@
                         </div>
                     </div>
                     
-                    <div class="flex space-x-2 border-t border-gray-700/50 pt-2 text-xs">
+                    <div class="pt-1 border-t border-gray-700/50">
                         <a href="mailto:${u.usuario}?subject=${asuntoEmail}&body=${cuerpoEmail}" 
-                           class="flex-1 bg-amber-600/20 hover:bg-amber-600/30 text-amber-300 border border-amber-500/30 text-center py-1 rounded font-semibold">
+                           class="block w-full bg-amber-600/20 hover:bg-amber-600/30 text-amber-300 border border-amber-500/30 text-center py-1.5 rounded-lg text-xs font-bold transition">
                            ✉️ Enviar Notificación
-                        </a>
-                        <a href="https://wa.me/595993541374?text=${mensajeWhatsapp}" target="_blank"
-                           class="bg-green-600/20 hover:bg-green-600/30 text-green-300 border border-green-500/30 px-2 py-1 rounded font-semibold flex items-center">
-                           💬 WhatsApp
                         </a>
                     </div>
                 `;
