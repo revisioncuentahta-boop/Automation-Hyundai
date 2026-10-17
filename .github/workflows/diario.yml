@@ -4,7 +4,12 @@ on:
   schedule:
     # Se ejecuta de Lunes a Viernes a las 11:00 UTC (8:00 AM hora Paraguay)
     - cron: '0 11 * * 1-5'
-  workflow_dispatch: # Permite probarlo manualmente cuando quieras
+  workflow_dispatch:
+    inputs:
+      grupo:
+        description: 'Número de grupo a ejecutar (1 al 5)'
+        required: false
+        default: '1'
 
 jobs:
   run-automation:
@@ -19,21 +24,23 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Instalar Playwright y Librerías
+      - name: Instalar Librerías y Playwright
         run: |
-          pip install playwright google-genai pandas openpyxl
+          python -m pip install --upgrade pip
+          pip install playwright google-genai pandas openpyxl firebase-admin
           playwright install --with-deps chromium
-
-      - name: Determinar Grupo según el Día
-        run: |
-          # 1=Lunes, 2=Martes, 3=Miércoles, 4=Jueves, 5=Viernes
-          DAY_NUM=$(date +%u)
-          echo "GRUPO_NUM=$DAY_NUM" >> $GITHUB_ENV
-          echo "Hoy es día $DAY_NUM de la semana. Se procesará el Grupo $DAY_NUM."
 
       - name: Ejecutar Script de Automatización
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
+          FIREBASE_CREDENTIALS: ${{ secrets.FIREBASE_CREDENTIALS }}
         run: |
-          python ejecutargrupo.py $GRUPO_NUM
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "Ejecución manual detectada para el Grupo ${{ github.event.inputs.grupo }}"
+            python ejecutargrupo.py ${{ github.event.inputs.grupo }}
+          else
+            DAY_NUM=$(date +%u)
+            echo "Ejecución automática por Cron para el Día $DAY_NUM"
+            python ejecutargrupo.py $DAY_NUM
+          fi
