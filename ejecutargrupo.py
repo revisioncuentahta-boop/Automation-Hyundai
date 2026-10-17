@@ -43,7 +43,7 @@ if len(sys.argv) > 1:
     print(f"📌 Grupo recibido por argumento de línea de comandos: {grupo_a_ejecutar}")
 
 # B) Consultar si existe una orden de ejecución manual enviada desde la App Web
-manual_doc_ref = db.collection("config").doc("ejecucion_manual")
+manual_doc_ref = db.collection("config").document("ejecucion_manual")
 manual_doc = manual_doc_ref.get()
 
 if manual_doc.exists:
@@ -64,7 +64,7 @@ print(f"🚀 Iniciando proceso de automatización para el GRUPO {grupo_a_ejecuta
 # ---------------------------------------------------------
 # 4. ACTUALIZAR ESTADO INICIAL EN MONITOREO
 # ---------------------------------------------------------
-db.collection("monitoreo").doc("estado").set({
+db.collection("monitoreo").document("estado").set({
     "en_proceso": True,
     "usuario_actual": "Iniciando robot...",
     "progreso": "0/0",
@@ -89,7 +89,7 @@ print(f"📋 Se encontraron {total_tecnicos} técnicos activos pertenecientes al
 
 if total_tecnicos == 0:
     print("⚠️ No hay técnicos activos registrados para este grupo. Finalizando tarea.")
-    db.collection("monitoreo").doc("estado").set({
+    db.collection("monitoreo").document("estado").set({
         "en_proceso": False,
         "usuario_actual": "---",
         "progreso": "Completado (0 técnicos)",
@@ -113,7 +113,7 @@ with sync_playwright() as p:
         print(f"[{idx}/{total_tecnicos}] Procesando técnico: {email}")
 
         # Actualizar monitoreo en tiempo real hacia la App Web
-        db.collection("monitoreo").doc("estado").set({
+        db.collection("monitoreo").document("estado").set({
             "en_proceso": True,
             "usuario_actual": email,
             "progreso": f"{idx}/{total_tecnicos}",
@@ -123,18 +123,13 @@ with sync_playwright() as p:
 
         try:
             # Aquí va tu flujo de navegación en HTA con Playwright
-            # Ejemplo:
-            # page.goto("https://portal.hyundai.com")
-            # page.fill("#username", email)
-            # page.fill("#password", clave)
-            # page.click("#login-btn")
             time.sleep(2)  # Simulación de interacción
             print(f"✅ Procesado con éxito: {email}")
 
         except Exception as e:
             print(f"❌ Error al procesar a {email}: {e}")
             fallos_acumulados += 1
-            db.collection("monitoreo").doc("estado").set({
+            db.collection("monitoreo").document("estado").set({
                 "fallos_count": fallos_acumulados
             }, merge=True)
 
@@ -143,7 +138,7 @@ with sync_playwright() as p:
 # ---------------------------------------------------------
 # 7. FINALIZACIÓN Y RESTABLECIMIENTO DE ESTADO
 # ---------------------------------------------------------
-db.collection("monitoreo").doc("estado").set({
+db.collection("monitoreo").document("estado").set({
     "en_proceso": False,
     "usuario_actual": "---",
     "progreso": f"Finalizado ({total_tecnicos}/{total_tecnicos})",
