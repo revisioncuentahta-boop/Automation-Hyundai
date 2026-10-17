@@ -1,137 +1,168 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" class="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hyundai Monitor App</title>
+    <title>Hyundai Monitor HTA - WRC</title>
+    <!-- Tailwind CSS CDN con tipografía Inter -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     
     <!-- Librerías estables v8 de Firebase -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Plus Jakarta Sans', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            50: '#f0f6ff',
+                            500: '#2563eb',
+                            600: '#1d4ed8',
+                            900: '#0f172a',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
     <style>
         body {
-            background: linear-gradient(rgba(15, 23, 42, 0.88), rgba(15, 23, 42, 0.95)), 
-                        url('https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?q=80&w=1200&auto=format&fit=crop');
-            background-size: cover;
-            background-position: center;
+            background: radial-gradient(circle at top right, #1e293b, #0f172a, #020617);
             background-attachment: fixed;
+        }
+        .glass-card {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .glass-btn {
+            background: linear-gradient(135deg, rgba(37, 99, 235, 0.9), rgba(29, 78, 216, 0.9));
+            box-shadow: 0 4px 15px rgba(37, 99, 235, 0.35);
+        }
+        .glass-btn:hover {
+            box-shadow: 0 6px 20px rgba(37, 99, 235, 0.5);
         }
     </style>
 </head>
-<body class="text-white min-h-screen p-4 font-sans">
-    <div class="max-w-md mx-auto space-y-5">
+<body class="text-slate-100 min-h-screen p-4 sm:p-6 font-sans antialiased selection:bg-blue-500 selection:text-white">
+    <div class="max-w-md mx-auto space-y-6">
         
-        <!-- Encabezado -->
-        <div class="flex justify-between items-center border-b border-gray-700/60 pb-3 backdrop-blur-sm">
+        <!-- Encabezado Principal -->
+        <div class="flex justify-between items-center pb-2 border-b border-slate-800">
             <div>
-                <h1 class="text-xl font-black tracking-wider text-blue-400 uppercase flex items-center gap-1.5">
-                    🏎️ Hyundai Monitor
-                </h1>
-                <p class="text-xs text-gray-400 font-medium">Panel de Control WRC / HTA</p>
+                <div class="flex items-center gap-2">
+                    <div class="w-3 h-3 rounded-full bg-blue-500 animate-pulse"></div>
+                    <h1 class="text-lg font-extrabold tracking-tight text-white uppercase">
+                        Hyundai Monitor
+                    </h1>
+                </div>
+                <p class="text-xs text-slate-400 font-medium">Panel de Control & Automatización HTA</p>
             </div>
-            <span id="status-badge" class="px-3 py-1 rounded-full text-xs font-bold bg-gray-800/80 text-gray-400 border border-gray-700">
+            <span id="status-badge" class="px-3 py-1 rounded-full text-xs font-bold bg-slate-800 text-slate-400 border border-slate-700/80 shadow-inner">
                 Cargando...
             </span>
         </div>
 
         <!-- Botón Maestro de Suspensión General -->
-        <div id="pause-banner" class="bg-gray-800/90 backdrop-blur p-3 rounded-xl border border-gray-700/80 flex justify-between items-center shadow-lg">
+        <div id="pause-banner" class="glass-card p-4 rounded-2xl flex justify-between items-center shadow-2xl transition-all">
             <div>
-                <p class="text-[10px] text-gray-400 uppercase font-black tracking-wider">Estado del Sistema</p>
-                <p id="pause-status-text" class="text-xs font-bold text-green-400">🟢 Automatización Activa</p>
+                <p class="text-[10px] text-slate-400 uppercase font-black tracking-wider">Estado de Automatización</p>
+                <p id="pause-status-text" class="text-xs font-bold text-emerald-400 mt-0.5">🟢 Sistema Operativo</p>
             </div>
             <button id="btn-toggle-pause" onclick="togglePausarSistema()" 
-                    class="bg-yellow-600/20 hover:bg-yellow-600/40 text-yellow-300 border border-yellow-500/40 px-3 py-1.5 rounded-lg text-xs font-bold transition">
+                    class="bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 px-3.5 py-2 rounded-xl text-xs font-semibold transition active:scale-95">
                 ⏸️ Suspender
             </button>
         </div>
 
-        <!-- Sección de Ejecución Manual por Grupo/Día -->
-        <div class="bg-gray-800/90 backdrop-blur p-3.5 rounded-xl border border-gray-700/80 shadow-lg space-y-2">
-            <p class="text-[10px] text-blue-400 font-black uppercase tracking-wider">⚡ Iniciar Ejecución Manual por Día</p>
-            <div class="grid grid-cols-5 gap-1.5 text-xs">
-                <button onclick="ejecutarGrupoManual('1', 'Lunes')" class="bg-blue-600/30 hover:bg-blue-600/50 border border-blue-500/50 text-blue-200 py-2 rounded-lg font-bold text-center">
-                    Lun
-                </button>
-                <button onclick="ejecutarGrupoManual('2', 'Martes')" class="bg-blue-600/30 hover:bg-blue-600/50 border border-blue-500/50 text-blue-200 py-2 rounded-lg font-bold text-center">
-                    Mar
-                </button>
-                <button onclick="ejecutarGrupoManual('3', 'Miércoles')" class="bg-blue-600/30 hover:bg-blue-600/50 border border-blue-500/50 text-blue-200 py-2 rounded-lg font-bold text-center">
-                    Mié
-                </button>
-                <button onclick="ejecutarGrupoManual('4', 'Jueves')" class="bg-blue-600/30 hover:bg-blue-600/50 border border-blue-500/50 text-blue-200 py-2 rounded-lg font-bold text-center">
-                    Jue
-                </button>
-                <button onclick="ejecutarGrupoManual('5', 'Viernes')" class="bg-blue-600/30 hover:bg-blue-600/50 border border-blue-500/50 text-blue-200 py-2 rounded-lg font-bold text-center">
-                    Vie
-                </button>
-            </div>
-        </div>
-
-        <!-- Estado de Ejecución en Tiempo Real -->
-        <div class="bg-gray-800/90 backdrop-blur p-4 rounded-xl border border-gray-700/80 shadow-lg space-y-3">
-            <h2 class="text-xs font-black text-gray-300 uppercase tracking-wider">Estado en Tiempo Real</h2>
-            <div id="live-container" class="space-y-2">
-                <div class="flex justify-between text-sm">
-                    <span class="text-gray-400">Usuario actual:</span>
-                    <span id="usuario-actual" class="font-mono text-blue-300 font-bold">---</span>
-                </div>
-                <div class="flex justify-between text-sm">
-                    <span class="text-gray-400">Progreso:</span>
-                    <span id="progreso-texto" class="font-bold">0/0</span>
-                </div>
-                <div class="flex justify-between text-sm">
-                    <span class="text-gray-400">Fallos detectados:</span>
-                    <span id="fallos-count" class="text-red-400 font-bold">0</span>
-                </div>
-            </div>
-        </div>
-
-        <!-- Sección de Administración de Usuarios -->
-        <div class="space-y-3">
+        <!-- Botón de Acción Manual Sofisticado -->
+        <div class="glass-card p-4 rounded-2xl shadow-2xl space-y-3">
             <div class="flex justify-between items-center">
-                <h2 class="text-xs font-black text-gray-300 uppercase tracking-wider">Técnicos / Usuarios</h2>
-                <button onclick="toggleModal()" class="bg-blue-600 hover:bg-blue-500 px-3 py-1.5 rounded-lg text-xs font-bold shadow-md">
-                    + Nuevo Usuario
+                <span class="text-[10px] font-extrabold uppercase tracking-widest text-blue-400">Ejecución Manual por Grupo</span>
+                <span class="text-[10px] text-slate-400">GitHub Cloud</span>
+            </div>
+            <a href="https://github.com/revisioncuentahta-boop/Automation-Hyundai/actions/workflows/diario.yml" 
+               target="_blank" 
+               class="glass-btn w-full py-3 px-4 rounded-xl font-bold text-xs text-white text-center flex items-center justify-center gap-2.5 transition active:scale-95 cursor-pointer">
+                <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
+                <span>Abrir Consola de Ejecución Manual</span>
+            </a>
+        </div>
+
+        <!-- Estado en Tiempo Real -->
+        <div class="glass-card p-4 rounded-2xl shadow-2xl space-y-3">
+            <h2 class="text-xs font-bold text-slate-300 uppercase tracking-wider border-b border-slate-700/50 pb-2">Estado del Servidor en Vivo</h2>
+            <div class="grid grid-cols-3 gap-2 text-center pt-1">
+                <div class="bg-slate-800/50 p-2.5 rounded-xl border border-slate-700/50">
+                    <p class="text-[10px] text-slate-400 font-semibold uppercase">Usuario Actual</p>
+                    <p id="usuario-actual" class="text-xs font-mono font-bold text-blue-400 mt-1 truncate">---</p>
+                </div>
+                <div class="bg-slate-800/50 p-2.5 rounded-xl border border-slate-700/50">
+                    <p class="text-[10px] text-slate-400 font-semibold uppercase">Progreso</p>
+                    <p id="progreso-texto" class="text-xs font-bold text-white mt-1">0/0</p>
+                </div>
+                <div class="bg-slate-800/50 p-2.5 rounded-xl border border-slate-700/50">
+                    <p class="text-[10px] text-slate-400 font-semibold uppercase">Fallos</p>
+                    <p id="fallos-count" class="text-xs font-bold text-rose-400 mt-1">0</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Gestión de Usuarios y Accesos Mensuales -->
+        <div class="space-y-4">
+            <div class="flex justify-between items-center">
+                <div>
+                    <h2 class="text-xs font-bold text-slate-300 uppercase tracking-wider">Monitoreo de Accesos</h2>
+                    <p id="mes-actual-label" class="text-[10px] text-blue-400 font-semibold mt-0.5">Mes: Cargando...</p>
+                </div>
+                <button onclick="toggleModal()" class="bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded-xl text-xs font-bold shadow-lg shadow-blue-600/30 transition active:scale-95">
+                    + Nuevo Técnico
                 </button>
             </div>
 
             <!-- Buscador y Filtros -->
             <div class="space-y-2">
-                <input type="text" id="searchInput" onkeyup="filtrarUsuarios()" placeholder="🔍 Buscar por correo..." 
-                       class="w-full bg-gray-800/90 border border-gray-700 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-blue-500">
+                <input type="text" id="searchInput" onkeyup="filtrarUsuarios()" placeholder="🔍 Buscar técnico..." 
+                       class="w-full bg-slate-900/80 border border-slate-700/80 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-blue-500 transition shadow-inner">
                 
                 <div class="flex space-x-2 text-xs">
-                    <button onclick="setFiltro('todos')" id="btn-filtro-todos" class="px-3 py-1 rounded-lg bg-blue-600 font-bold">Todos</button>
-                    <button onclick="setFiltro('activos')" id="btn-filtro-activos" class="px-3 py-1 rounded-lg bg-gray-800/90 text-gray-400">Activos</button>
-                    <button onclick="setFiltro('inactivos')" id="btn-filtro-inactivos" class="px-3 py-1 rounded-lg bg-gray-800/90 text-gray-400">Inactivos</button>
+                    <button onclick="setFiltro('todos')" id="btn-filtro-todos" class="px-3 py-1.5 rounded-xl bg-blue-600 font-bold text-white shadow-md">Todos</button>
+                    <button onclick="setFiltro('activos')" id="btn-filtro-activos" class="px-3 py-1.5 rounded-xl bg-slate-800 text-slate-400 border border-slate-700">Activos</button>
+                    <button onclick="setFiltro('inactivos')" id="btn-filtro-inactivos" class="px-3 py-1.5 rounded-xl bg-slate-800 text-slate-400 border border-slate-700">Inactivos</button>
                 </div>
             </div>
 
             <!-- Lista de Usuarios -->
-            <div id="users-list" class="space-y-2 max-h-96 overflow-y-auto pr-1">
-                <p class="text-xs text-gray-500 text-center py-4">Cargando lista de técnicos...</p>
+            <div id="users-list" class="space-y-3 max-h-96 overflow-y-auto pr-1">
+                <p class="text-xs text-slate-500 text-center py-6">Cargando lista de técnicos...</p>
             </div>
         </div>
     </div>
 
     <!-- Modal Agregar Usuario -->
-    <div id="userModal" class="fixed inset-0 bg-black/80 hidden items-center justify-center p-4 z-50 backdrop-blur-sm">
-        <div class="bg-gray-800 p-6 rounded-xl w-full max-w-sm space-y-4 border border-gray-700 shadow-2xl">
-            <h3 class="text-lg font-bold text-blue-400">Agregar Técnico</h3>
+    <div id="userModal" class="fixed inset-0 bg-slate-950/80 hidden items-center justify-center p-4 z-50 backdrop-blur-md">
+        <div class="glass-card p-6 rounded-2xl w-full max-w-sm space-y-4 shadow-2xl border border-slate-700/80">
+            <h3 class="text-base font-bold text-white">Agregar Nuevo Técnico</h3>
             <div>
-                <label class="text-xs text-gray-400">Correo Electrónico</label>
-                <input type="email" id="modalEmail" placeholder="ej. tecnico@hyundai.com" class="w-full bg-gray-900 border border-gray-700 rounded-lg p-2 text-sm text-white mt-1">
+                <label class="text-[11px] font-semibold text-slate-400 uppercase">Correo Electrónico</label>
+                <input type="email" id="modalEmail" placeholder="tecnico@hyundai.com" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-xs text-white mt-1 focus:outline-none focus:border-blue-500">
             </div>
             <div>
-                <label class="text-xs text-gray-400">Contraseña</label>
-                <input type="text" id="modalPass" value="Automotor*2026" class="w-full bg-gray-900 border border-gray-700 rounded-lg p-2 text-sm text-white mt-1">
+                <label class="text-[11px] font-semibold text-slate-400 uppercase">Contraseña</label>
+                <input type="text" id="modalPass" value="Automotor*2026" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-xs text-white mt-1 focus:outline-none focus:border-blue-500">
             </div>
             <div>
-                <label class="text-xs text-gray-400">Grupo de Día</label>
-                <select id="modalGrupo" class="w-full bg-gray-900 border border-gray-700 rounded-lg p-2 text-sm text-white mt-1">
+                <label class="text-[11px] font-semibold text-slate-400 uppercase">Grupo por Día</label>
+                <select id="modalGrupo" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-xs text-white mt-1 focus:outline-none focus:border-blue-500">
                     <option value="1">Grupo 1 (Lunes)</option>
                     <option value="2">Grupo 2 (Martes)</option>
                     <option value="3">Grupo 3 (Miércoles)</option>
@@ -140,8 +171,8 @@
                 </select>
             </div>
             <div class="flex justify-end space-x-2 pt-2">
-                <button onclick="toggleModal()" class="px-4 py-2 text-xs text-gray-400">Cancelar</button>
-                <button onclick="guardarUsuario()" class="bg-blue-600 px-4 py-2 rounded-lg text-xs font-bold shadow">Guardar</button>
+                <button onclick="toggleModal()" class="px-4 py-2 text-xs text-slate-400 hover:text-white font-semibold">Cancelar</button>
+                <button onclick="guardarUsuario()" class="bg-blue-600 hover:bg-blue-500 px-4 py-2 rounded-xl text-xs font-bold text-white shadow-lg shadow-blue-600/30">Guardar</button>
             </div>
         </div>
     </div>
@@ -165,6 +196,13 @@
         let filtroActual = 'todos';
         let sistemaPausado = false;
 
+        // Obtener identificador del mes actual (Ejemplo: "2026-10")
+        const ahora = new Date();
+        const mesActualClave = `${ahora.getFullYear()}-${String(ahora.getMonth() + 1).padStart(2, '0')}`;
+        
+        const nombresMeses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+        document.getElementById("mes-actual-label").innerText = `Mes Activo: ${nombresMeses[ahora.getMonth()]} ${ahora.getFullYear()}`;
+
         // Escuchar estado de pausa global
         db.collection("config").doc("global").onSnapshot(doc => {
             if (doc.exists) {
@@ -178,14 +216,14 @@
             const btn = document.getElementById("btn-toggle-pause");
             if (sistemaPausado) {
                 txt.innerText = "🛑 Automatización Pausada";
-                txt.className = "text-xs font-bold text-red-400";
+                txt.className = "text-xs font-bold text-rose-400 mt-0.5";
                 btn.innerText = "▶️ Reanudar";
-                btn.className = "bg-green-600/20 hover:bg-green-600/30 text-green-300 border border-green-500/40 px-3 py-1.5 rounded-lg text-xs font-bold transition";
+                btn.className = "bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-3.5 py-2 rounded-xl text-xs font-semibold transition active:scale-95";
             } else {
-                txt.innerText = "🟢 Automatización Activa";
-                txt.className = "text-xs font-bold text-green-400";
+                txt.innerText = "🟢 Sistema Operativo";
+                txt.className = "text-xs font-bold text-emerald-400 mt-0.5";
                 btn.innerText = "⏸️ Suspender";
-                btn.className = "bg-yellow-600/20 hover:bg-yellow-600/40 text-yellow-300 border border-yellow-500/40 px-3 py-1.5 rounded-lg text-xs font-bold transition";
+                btn.className = "bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 px-3.5 py-2 rounded-xl text-xs font-semibold transition active:scale-95";
             }
         }
 
@@ -197,31 +235,16 @@
             }, { merge: true });
         }
 
-        // Enviar la señal de ejecución manual directamente a Firebase (seguro y sin tokens expuestos)
-        function ejecutarGrupoManual(grupoNum, diaNombre) {
-            if (confirm(`¿Deseas iniciar la ejecución manual del Grupo ${grupoNum} (${diaNombre})?`)) {
-                db.collection("config").doc("ejecucion_manual").set({
-                    solicitado: true,
-                    grupo: String(grupoNum),
-                    fecha_solicitud: firebase.firestore.FieldValue.serverTimestamp()
-                }).then(() => {
-                    alert(`🚀 Solicitud guardada. El robot ejecutará el Grupo ${grupoNum} (${diaNombre}).`);
-                }).catch(err => {
-                    alert("❌ Error al guardar la solicitud: " + err);
-                });
-            }
-        }
-
-        // Monitoreo en vivo
+        // Monitoreo en tiempo real
         db.collection("monitoreo").doc("estado").onSnapshot(doc => {
             if (doc.exists) {
                 const data = doc.data();
                 const badge = document.getElementById("status-badge");
                 if (data.en_proceso) {
-                    badge.className = "px-3 py-1 rounded-full text-xs font-bold bg-green-500/20 text-green-400 border border-green-500/40 animate-pulse";
+                    badge.className = "px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 animate-pulse";
                     badge.innerText = "🟢 EN EJECUCIÓN";
                 } else {
-                    badge.className = "px-3 py-1 rounded-full text-xs font-bold bg-gray-800/80 text-gray-400 border border-gray-700";
+                    badge.className = "px-3 py-1 rounded-full text-xs font-bold bg-slate-800 text-slate-400 border border-slate-700/80";
                     badge.innerText = "⚪ INACTIVO";
                 }
                 document.getElementById("usuario-actual").innerText = data.usuario_actual || "---";
@@ -245,9 +268,9 @@
             ['todos', 'activos', 'inactivos'].forEach(f => {
                 const btn = document.getElementById(`btn-filtro-${f}`);
                 if (f === tipo) {
-                    btn.className = "px-3 py-1 rounded-lg bg-blue-600 font-bold text-white";
+                    btn.className = "px-3 py-1.5 rounded-xl bg-blue-600 font-bold text-white shadow-md";
                 } else {
-                    btn.className = "px-3 py-1 rounded-lg bg-gray-800/90 text-gray-400";
+                    btn.className = "px-3 py-1.5 rounded-xl bg-slate-800 text-slate-400 border border-slate-700";
                 }
             });
             filtrarUsuarios();
@@ -257,13 +280,16 @@
             const container = document.getElementById("users-list");
             container.innerHTML = "";
             if (lista.length === 0) {
-                container.innerHTML = `<p class="text-xs text-gray-500 text-center py-4">No hay técnicos registrados aún.</p>`;
+                container.innerHTML = `<p class="text-xs text-slate-500 text-center py-6">No se encontraron técnicos registrados.</p>`;
                 return;
             }
             lista.forEach(u => {
                 const card = document.createElement("div");
-                card.className = "bg-gray-800/90 backdrop-blur p-3 rounded-lg border border-gray-700/80 space-y-2 shadow-md";
+                card.className = "glass-card p-3.5 rounded-2xl space-y-2.5 shadow-lg border border-slate-700/50";
                 
+                // Conteo de accesos del mes actual (Si cambia de mes, mostrará 0 automáticamente)
+                const accesosDelMes = (u.mes_acceso === mesActualClave) ? (u.accesos_mes || 0) : 0;
+
                 const asuntoEmail = encodeURIComponent("Notificación de Seguridad - Automatizacion de acceso de HTA fue cancelada");
                 const cuerpoEmail = encodeURIComponent(
                     `Estimado,\n\nLa automatización de su acceso a la plataforma Hyundai HTA ha quedado cancelada debido a un error de credenciales y/o del sistema.\n\nRecuerde que su contraseña debe ser Automotor*2026. Por favor, actualícela en el portal si no es esa contraseña, o comuníquese con Esteban Fernandez al 0993541374.\n\nEnviele un mensaje de whatsapp como este:\n"Hola Esteban, cambie mi contraseña y ya no es Automotor*2026, lo volvere a cambiar, o si lo cambias tu, avisame porfavor. Saludos"`
@@ -271,22 +297,28 @@
 
                 card.innerHTML = `
                     <div class="flex justify-between items-start">
-                        <div>
-                            <p class="text-sm font-bold text-gray-200">${u.usuario}</p>
-                            <p class="text-xs text-gray-400">Clave: <span class="font-mono text-yellow-300 font-bold">${u.password}</span> | Grupo: ${u.grupo}</p>
+                        <div class="space-y-0.5">
+                            <p class="text-xs font-bold text-slate-100">${u.usuario}</p>
+                            <p class="text-[11px] text-slate-400">Clave: <span class="font-mono text-amber-300 font-semibold">${u.password}</span> | Grupo: ${u.grupo}</p>
                         </div>
-                        <div class="flex items-center space-x-1">
-                            <button onclick="toggleActivo('${u.id}', ${u.activo})" class="px-2 py-1 text-xs rounded font-semibold ${u.activo ? 'bg-green-600/20 text-green-400 border border-green-500/30' : 'bg-red-600/20 text-red-400 border border-red-500/30'}">
+                        <div class="flex items-center space-x-1.5">
+                            <button onclick="toggleActivo('${u.id}', ${u.activo})" class="px-2.5 py-1 text-[11px] rounded-lg font-semibold transition ${u.activo ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30' : 'bg-rose-500/10 text-rose-400 border border-rose-500/30'}">
                                 ${u.activo ? 'Activo' : 'Inactivo'}
                             </button>
-                            <button onclick="eliminarUsuario('${u.id}')" class="text-red-400 hover:text-red-300 text-xs px-1">🗑️</button>
+                            <button onclick="eliminarUsuario('${u.id}')" class="text-slate-500 hover:text-rose-400 text-xs p-1 transition">🗑️</button>
                         </div>
                     </div>
                     
-                    <div class="pt-1 border-t border-gray-700/50">
+                    <div class="flex justify-between items-center pt-2 border-t border-slate-700/50 text-[11px]">
+                        <div class="flex items-center gap-1.5">
+                            <span class="text-slate-400">Accesos en el mes:</span>
+                            <span class="px-2 py-0.5 rounded-md font-bold ${accesosDelMes > 0 ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30' : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'}">
+                                🔑 ${accesosDelMes} accesos
+                            </span>
+                        </div>
                         <a href="mailto:${u.usuario}?subject=${asuntoEmail}&body=${cuerpoEmail}" 
-                           class="block w-full bg-amber-600/20 hover:bg-amber-600/30 text-amber-300 border border-amber-500/30 text-center py-1.5 rounded-lg text-xs font-bold transition">
-                           ✉️ Enviar Notificación
+                           class="text-amber-400 hover:text-amber-300 font-semibold underline decoration-amber-500/30">
+                           Enviar aviso
                         </a>
                     </div>
                 `;
@@ -323,13 +355,15 @@
                     usuario: usuario,
                     password: password,
                     grupo: grupo,
-                    activo: true
+                    activo: true,
+                    accesos_mes: 0,
+                    mes_acceso: mesActualClave
                 }).then(() => {
                     toggleModal();
                     document.getElementById("modalEmail").value = "";
                 });
             } else {
-                alert("Por favor completa el usuario y la contraseña.");
+                alert("Por favor completa el correo y la contraseña.");
             }
         }
 
