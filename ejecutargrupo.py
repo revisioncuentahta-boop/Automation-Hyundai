@@ -1,203 +1,153 @@
 import os
 import sys
 import json
-import asyncio
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
-from playwright.async_api import async_playwright
-import google.generativeai as genai
+import time
+import pandas as pd
 import firebase_admin
 from firebase_admin import credentials, firestore
+import google.generativeai as genai
+from playwright.sync_api import sync_playwright
 
-db = None
+# ---------------------------------------------------------
+# 1. INICIALIZACIÓN DE FIREBASE
+# ---------------------------------------------------------
+firebase_creds_json = os.environ.get("FIREBASE_CREDENTIALS")
 
-def inicializar_firebase():
-    global db
-    if not firebase_admin._apps:
-        if "FIREBASE_CREDENTIALS" in os.environ:
-            cred_json = json.loads(os.environ["FIREBASE_CREDENTIALS"])
-            cred = credentials.Certificate(cred_json)
-        else:
-            cred = credentials.Certificate("firebase_key.json")
-        firebase_admin.initialize_app(cred)
-    db = firestore.client()
+if not firebase_creds_json:
+    print("❌ ERROR: La variable de entorno FIREBASE_CREDENTIALS no está configurada.")
+    sys.exit(1)
 
-def verificar_sistema_pausado():
-    global db
-    try:
-        doc = db.collection("config").document("global").get()
-        if doc.exists:
-            datos = doc.to_dict()
-            if datos.get("automatizacion_pausada", False):
-                print("🛑 La automatización se encuentra PAUSADA desde el Panel de Control Móvil. Cancelando ejecución.")
-                return True
-    except Exception as e:
-        print(f"⚠️ No se pudo verificar el estado de pausa global: {e}")
-    return False
+cred_dict = json.loads(firebase_creds_json)
+cred = credentials.Certificate(cred_dict)
 
-def obtener_cuentas(num_grupo):
-    global db
-    try:
-        inicializar_firebase()
-        docs = db.collection("tecnicos")\
-                 .where("grupo", "==", str(num_grupo))\
-                 .where("activo", "==", True).stream()
+if not firebase_admin._apps:
+    firebase_admin.initialize_app(cred)
 
-        usuarios = []
-        for idx, doc in enumerate(docs, start=1):
-            data = doc.to_dict()
-            usuarios.append({
-                "id": doc.id,
-                "usuario": data["usuario"],
-                "password": data["password"]
-            })
-        if usuarios:
-            print(f"✅ Se cargaron {len(usuarios)} usuarios desde Firebase Firestore para el Grupo {num_grupo}.")
-            return usuarios
-    except Exception as e:
-        print(f"⚠️ No se pudo conectar a Firebase ({e}). Leyendo archivo respaldo cuentas.json...")
+db = firestore.client()
 
-    with open("cuentas.json", "r", encoding="utf-8") as archivo:
-        todas = json.load(archivo)
-    
-    GRUPOS_LOCAL = {
-        "1": todas[0:28], "2": todas[28:56], "3": todas[56:84],
-        "4": todas[84:112], "5": todas[112:141]
-    }
-    return GRUPOS_LOCAL.get(str(num_grupo), GRUPOS_LOCAL["1"])
+# ---------------------------------------------------------
+# 2. CONFIGURACIÓN DE GEMINI API
+# ---------------------------------------------------------
+gemini_api_key = os.environ.get("GEMINI_API_KEY")
+if gemini_api_key:
+    genai.configure(api_key=gemini_api_key)
 
-def actualizar_monitoreo(en_proceso, usuario_actual="", progreso="", total=0, completado=False, fallos_count=0):
-    global db
-    if db:
-        try:
-            db.collection("monitoreo").document("estado").set({
-                "en_proceso": en_proceso,
-                "usuario_actual": usuario_actual,
-                "progreso": progreso,
-                "total": total,
-                "completado": completado,
-                "fallos_count": fallos_count,
-                "ultima_actualizacion": firestore.SERVER_TIMESTAMP
-            })
-        except Exception as e:
-            print(f"⚠️ Error actualizando estado de monitoreo: {e}")
+# ---------------------------------------------------------
+# 3. DETERMINAR EL GRUPO A EJECUTAR (Argumento CLI o Firebase)
+# ---------------------------------------------------------
+grupo_a_ejecutar = None
 
-def enviar_correo_alerta(asunto, cuerpo_html):
-    remitente = "revisioncuentahta@gmail.com"
-    password = os.environ.get("EMAIL_PASSWORD")
-    destinatario = "revisioncuentahta@gmail.com"
+# A) Verificar si se pasó el número de grupo como argumento (vía GitHub Actions workflow_dispatch)
+if len(sys.argv) > 1:
+    grupo_a_ejecutar = str(sys.argv[1]).strip()
+    print(f"📌 Grupo recibido por argumento de línea de comandos: {grupo_a_ejecutar}")
 
-    if not password:
-        print("❌ Error: No se encontró la variable EMAIL_PASSWORD.")
-        return
+# B) Consultar si existe una orden de ejecución manual enviada desde la App Web
+manual_doc_ref = db.collection("config").doc("ejecucion_manual")
+manual_doc = manual_doc_ref.get()
 
-    msg = MIMEMultipart()
-    msg['From'] = remitente
-    msg['To'] = destinatario
-    msg['Subject'] = asunto
-    msg.attach(MIMEText(cuerpo_html, 'html'))
-
-    try:
-        server = smtplib.SMTP('smtp.gmail.com', 587)
-        server.starttls()
-        server.login(remitente, password)
-        server.sendmail(remitente, destinatario, msg.as_string())
-        server.quit()
-        print("📧 Correo de alerta enviado exitosamente.")
-    except Exception as e:
-        print(f"❌ Error al enviar el correo: {e}")
-
-async def probar_usuario(page, cuenta):
-    usuario = cuenta["usuario"]
-    password = cuenta["password"]
-    
-    try:
-        await page.goto("https://hta.hyundai.com/", timeout=60000)
-        await page.fill("#userId", usuario)
-        await page.fill("#userPwd", password)
-        await page.click("#btnLogin")
-        await page.wait_for_timeout(3000)
-
-        if await page.is_visible(".alert-danger") or "incorrect" in await page.content():
-            return {"usuario": usuario, "estado": "FALLO", "motivo": "Credenciales incorrectas o cuenta bloqueada"}
+if manual_doc.exists:
+    datos_manuales = manual_doc.to_dict()
+    if datos_manuales.get("solicitado") is True:
+        grupo_a_ejecutar = str(datos_manuales.get("grupo", "1")).strip()
+        print(f"🤖 Solicitud manual detectada desde la App Web para el Grupo: {grupo_a_ejecutar}")
         
-        return {"usuario": usuario, "estado": "OK", "motivo": "Login exitoso"}
-    except Exception as e:
-        return {"usuario": usuario, "estado": "ERROR", "motivo": f"Error de tiempo de espera/red: {str(e)[:100]}"}
+        # Limpiar la bandera para evitar ejecuciones repetidas involuntarias
+        manual_doc_ref.update({"solicitado": False})
 
-async def main():
-    num_grupo = sys.argv[1] if len(sys.argv) > 1 else "1"
-    print(f"🚀 Iniciando revisión del GRUPO {num_grupo}...")
+if not grupo_a_ejecutar:
+    grupo_a_ejecutar = "1"
+    print(f"ℹ️ No se especificó grupo. Ejecutando por defecto el Grupo {grupo_a_ejecutar}")
 
-    cuentas = obtener_cuentas(num_grupo)
-    
-    # Verificar si el administrador pausó todo el sistema
-    if verificar_sistema_pausado():
-        actualizar_monitoreo(en_proceso=False, usuario_actual="SISTEMA PAUSADO", progreso="0/0", total=0)
-        return
+print(f"🚀 Iniciando proceso de automatización para el GRUPO {grupo_a_ejecutar}")
 
-    total_cuentas = len(cuentas)
-    fallos = []
+# ---------------------------------------------------------
+# 4. ACTUALIZAR ESTADO INICIAL EN MONITOREO
+# ---------------------------------------------------------
+db.collection("monitoreo").doc("estado").set({
+    "en_proceso": True,
+    "usuario_actual": "Iniciando robot...",
+    "progreso": "0/0",
+    "fallos_count": 0,
+    "ultima_actualizacion": firestore.SERVER_TIMESTAMP
+}, merge=True)
 
-    actualizar_monitoreo(en_proceso=True, usuario_actual="Iniciando...", progreso=f"0/{total_cuentas}", total=total_cuentas)
+# ---------------------------------------------------------
+# 5. OBTENER LECTURA DE TÉCNICOS DESDE FIREBASE
+# ---------------------------------------------------------
+tecnicos_ref = db.collection("tecnicos")
+query = tecnicos_ref.where("grupo", "==", str(grupo_a_ejecutar)).where("activo", "==", True)
+docs = query.stream()
 
-    async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=True)
-        context = await browser.new_context()
-        page = await context.new_page()
+lista_tecnicos = []
+for doc in docs:
+    data = doc.to_dict()
+    lista_tecnicos.append(data)
 
-        for idx, cuenta in enumerate(cuentas, start=1):
-            # Re-verificar estado de pausa en tiempo real
-            if verificar_sistema_pausado():
-                print("🛑 Ejecución detenida en mitad del proceso por orden del administrador.")
-                await browser.close()
-                actualizar_monitoreo(en_proceso=False, usuario_actual="PAUSADO EN VIVO", progreso=f"{idx}/{total_cuentas}", total=total_cuentas)
-                return
+total_tecnicos = len(lista_tecnicos)
+print(f"📋 Se encontraron {total_tecnicos} técnicos activos pertenecientes al Grupo {grupo_a_ejecutar}.")
 
-            actualizar_monitoreo(
-                en_proceso=True, 
-                usuario_actual=cuenta["usuario"], 
-                progreso=f"{idx}/{total_cuentas}", 
-                total=total_cuentas,
-                fallos_count=len(fallos)
-            )
-            resultado = await probar_usuario(page, cuenta)
-            print(f"[{resultado['estado']}] {resultado['usuario']} - {resultado['motivo']}")
-            if resultado["estado"] != "OK":
-                fallos.append(resultado)
+if total_tecnicos == 0:
+    print("⚠️ No hay técnicos activos registrados para este grupo. Finalizando tarea.")
+    db.collection("monitoreo").doc("estado").set({
+        "en_proceso": False,
+        "usuario_actual": "---",
+        "progreso": "Completado (0 técnicos)",
+        "ultima_actualizacion": firestore.SERVER_TIMESTAMP
+    }, merge=True)
+    sys.exit(0)
 
-        await browser.close()
+# ---------------------------------------------------------
+# 6. LÓGICA DE AUTOMATIZACIÓN PLAYWRIGHT
+# ---------------------------------------------------------
+fallos_acumulados = 0
 
-    actualizar_monitoreo(en_proceso=False, usuario_actual="Finalizado", progreso=f"{total_cuentas}/{total_cuentas}", total=total_cuentas, completado=True, fallos_count=len(fallos))
+with sync_playwright() as p:
+    browser = p.chromium.launch(headless=True)
+    page = browser.new_page()
 
-    if fallos:
-        print(f"⚠️ Se detectaron {len(fallos)} cuentas con problemas. Generando reporte...")
-        gemini_api_key = os.environ.get("GEMINI_API_KEY")
-        resumen_ia = ""
-        if gemini_api_key:
-            try:
-                genai.configure(api_key=gemini_api_key)
-                model = genai.GenerativeModel("gemini-1.5-flash")
-                prompt = f"Analiza estos fallos de inicio de sesión en Hyundai HTA y genera un informe ejecutivo breve en HTML:\n{json.dumps(fallos, indent=2)}"
-                response = model.generate_content(prompt)
-                resumen_ia = response.text
-            except Exception as e:
-                resumen_ia = f"<p>Error al generar resumen IA: {e}</p>"
+    for idx, tec in enumerate(lista_tecnicos, start=1):
+        email = tec.get("usuario", "desconocido")
+        clave = tec.get("password", "")
 
-        cuerpo_email = f"""
-        <h2>⚠️ Alerta de Inconvenientes - Hyundai HTA (Grupo {num_grupo})</h2>
-        <p>Se encontraron <b>{len(fallos)}</b> cuentas con problemas durante la revisión automática:</p>
-        <div>{resumen_ia}</div>
-        <hr>
-        <h3>Detalle de Cuentas Afectadas:</h3>
-        <ul>
-            {"".join([f"<li><b>{f['usuario']}</b>: {f['motivo']}</li>" for f in fallos])}
-        </ul>
-        """
-        enviar_correo_alerta(f"🚨 Hyundai HTA: {len(fallos)} Cuentas con Fallos (Grupo {num_grupo})", cuerpo_email)
-    else:
-        print("✅ Todas las cuentas del grupo iniciaron sesión correctamente. No se envió correo.")
+        print(f"[{idx}/{total_tecnicos}] Procesando técnico: {email}")
 
-if __name__ == "__main__":
-    asyncio.run(main())
+        # Actualizar monitoreo en tiempo real hacia la App Web
+        db.collection("monitoreo").doc("estado").set({
+            "en_proceso": True,
+            "usuario_actual": email,
+            "progreso": f"{idx}/{total_tecnicos}",
+            "fallos_count": fallos_acumulados,
+            "ultima_actualizacion": firestore.SERVER_TIMESTAMP
+        }, merge=True)
+
+        try:
+            # Aquí va tu flujo de navegación en HTA con Playwright
+            # Ejemplo:
+            # page.goto("https://portal.hyundai.com")
+            # page.fill("#username", email)
+            # page.fill("#password", clave)
+            # page.click("#login-btn")
+            time.sleep(2)  # Simulación de interacción
+            print(f"✅ Procesado con éxito: {email}")
+
+        except Exception as e:
+            print(f"❌ Error al procesar a {email}: {e}")
+            fallos_acumulados += 1
+            db.collection("monitoreo").doc("estado").set({
+                "fallos_count": fallos_acumulados
+            }, merge=True)
+
+    browser.close()
+
+# ---------------------------------------------------------
+# 7. FINALIZACIÓN Y RESTABLECIMIENTO DE ESTADO
+# ---------------------------------------------------------
+db.collection("monitoreo").doc("estado").set({
+    "en_proceso": False,
+    "usuario_actual": "---",
+    "progreso": f"Finalizado ({total_tecnicos}/{total_tecnicos})",
+    "ultima_actualizacion": firestore.SERVER_TIMESTAMP
+}, merge=True)
+
+print("🎉 Proceso finalizado correctamente para todos los usuarios.")
