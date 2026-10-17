@@ -11,7 +11,7 @@
 <body class="bg-gray-900 text-white min-h-screen p-4 font-sans">
     <div class="max-w-md mx-auto space-y-6">
         
-        <!-- Encabezado -->
+        <!-- Encabezado con Botón de Suspensión -->
         <div class="flex justify-between items-center border-b border-gray-800 pb-4">
             <div>
                 <h1 class="text-xl font-bold text-blue-400">Hyundai Monitor</h1>
@@ -20,6 +20,18 @@
             <span id="status-badge" class="px-3 py-1 rounded-full text-xs font-semibold bg-gray-800 text-gray-400">
                 Cargando...
             </span>
+        </div>
+
+        <!-- Botón Maestro de Suspensión General -->
+        <div id="pause-banner" class="bg-gray-800 p-3 rounded-xl border border-gray-700 flex justify-between items-center shadow">
+            <div>
+                <p class="text-xs text-gray-400 font-semibold">ESTADO DEL SISTEMA</p>
+                <p id="pause-status-text" class="text-sm font-bold text-green-400">🟢 Automatización Activa</p>
+            </div>
+            <button id="btn-toggle-pause" onclick="togglePausarSistema()" 
+                    class="bg-yellow-600/20 hover:bg-yellow-600/30 text-yellow-300 border border-yellow-500/40 px-3 py-1.5 rounded-lg text-xs font-bold transition">
+                ⏸️ Suspender
+            </button>
         </div>
 
         <!-- Estado de Ejecución en Tiempo Real -->
@@ -50,9 +62,17 @@
                 </button>
             </div>
 
-            <!-- Buscador -->
-            <input type="text" id="searchInput" onkeyup="filtrarUsuarios()" placeholder="🔍 Buscar por correo..." 
-                   class="w-full bg-gray-800 border border-gray-700 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-blue-500">
+            <!-- Buscador y Filtros -->
+            <div class="space-y-2">
+                <input type="text" id="searchInput" onkeyup="filtrarUsuarios()" placeholder="🔍 Buscar por correo..." 
+                       class="w-full bg-gray-800 border border-gray-700 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-blue-500">
+                
+                <div class="flex space-x-2 text-xs">
+                    <button onclick="setFiltro('todos')" id="btn-filtro-todos" class="px-3 py-1 rounded bg-blue-600 font-bold">Todos</button>
+                    <button onclick="setFiltro('activos')" id="btn-filtro-activos" class="px-3 py-1 rounded bg-gray-800 text-gray-400">Activos</button>
+                    <button onclick="setFiltro('inactivos')" id="btn-filtro-inactivos" class="px-3 py-1 rounded bg-gray-800 text-gray-400">Inactivos</button>
+                </div>
+            </div>
 
             <!-- Lista de Usuarios -->
             <div id="users-list" class="space-y-2 max-h-96 overflow-y-auto pr-1">
@@ -62,7 +82,7 @@
     </div>
 
     <!-- Modal Agregar Usuario -->
-    <div id="userModal" class="fixed inset-0 bg-black/80 hidden items-center justify-center p-4">
+    <div id="userModal" class="fixed inset-0 bg-black/80 hidden items-center justify-center p-4 z-50">
         <div class="bg-gray-800 p-6 rounded-xl w-full max-w-sm space-y-4 border border-gray-700">
             <h3 class="text-lg font-bold text-blue-400">Agregar Técnico</h3>
             <div>
@@ -71,7 +91,7 @@
             </div>
             <div>
                 <label class="text-xs text-gray-400">Contraseña</label>
-                <input type="text" id="modalPass" placeholder="Contraseña" class="w-full bg-gray-900 border border-gray-700 rounded p-2 text-sm text-white mt-1">
+                <input type="text" id="modalPass" value="Automotor*2026" class="w-full bg-gray-900 border border-gray-700 rounded p-2 text-sm text-white mt-1">
             </div>
             <div>
                 <label class="text-xs text-gray-400">Grupo de Día</label>
@@ -91,7 +111,6 @@
     </div>
 
     <script>
-        // Configuración oficial de tu proyecto Firebase
         const firebaseConfig = {
             apiKey: "AIzaSyDj9oOsf_bRdJbMYHDdQOlbQPjMEoSzc_U",
             authDomain: "hyundai-monitor-bf294.firebaseapp.com",
@@ -106,8 +125,42 @@
         const db = firebase.firestore();
 
         let todosUsuarios = [];
+        let filtroActual = 'todos';
+        let sistemaPausado = false;
 
-        // Monitoreo en vivo del estado de ejecución
+        // Escuchar estado de pausa global
+        db.collection("config").doc("global").onSnapshot(doc => {
+            if (doc.exists) {
+                sistemaPausado = doc.data().automatizacion_pausada || false;
+                actualizarInterfazPausado();
+            }
+        });
+
+        function actualizarInterfazPausado() {
+            const txt = document.getElementById("pause-status-text");
+            const btn = document.getElementById("btn-toggle-pause");
+            if (sistemaPausado) {
+                txt.innerText = "🛑 Automatización Pausada";
+                txt.className = "text-sm font-bold text-red-400";
+                btn.innerText = "▶️ Reanudar";
+                btn.className = "bg-green-600/20 hover:bg-green-600/30 text-green-300 border border-green-500/40 px-3 py-1.5 rounded-lg text-xs font-bold transition";
+            } else {
+                txt.innerText = "🟢 Automatización Activa";
+                txt.className = "text-sm font-bold text-green-400";
+                btn.innerText = "⏸️ Suspender";
+                btn.className = "bg-yellow-600/20 hover:bg-yellow-600/30 text-yellow-300 border border-yellow-500/40 px-3 py-1.5 rounded-lg text-xs font-bold transition";
+            }
+        }
+
+        function togglePausarSistema() {
+            const nuevoEstado = !sistemaPausado;
+            db.collection("config").doc("global").set({
+                automatizacion_pausada: nuevoEstado,
+                ultima_modificacion: firebase.firestore.FieldValue.serverTimestamp()
+            }, { merge: true });
+        }
+
+        // Monitoreo en vivo
         db.collection("monitoreo").doc("estado").onSnapshot(doc => {
             if (doc.exists) {
                 const data = doc.data();
@@ -125,15 +178,27 @@
             }
         });
 
-        // Cargar lista de técnicos desde Firestore
         function cargarUsuarios() {
             db.collection("tecnicos").onSnapshot(snapshot => {
                 todosUsuarios = [];
                 snapshot.forEach(doc => {
                     todosUsuarios.push({ id: doc.id, ...doc.data() });
                 });
-                renderUsuarios(todosUsuarios);
+                filtrarUsuarios();
             });
+        }
+
+        function setFiltro(tipo) {
+            filtroActual = tipo;
+            ['todos', 'activos', 'inactivos'].forEach(f => {
+                const btn = document.getElementById(`btn-filtro-${f}`);
+                if (f === tipo) {
+                    btn.className = "px-3 py-1 rounded bg-blue-600 font-bold text-white";
+                } else {
+                    btn.className = "px-3 py-1 rounded bg-gray-800 text-gray-400";
+                }
+            });
+            filtrarUsuarios();
         }
 
         function renderUsuarios(lista) {
@@ -141,17 +206,38 @@
             container.innerHTML = "";
             lista.forEach(u => {
                 const card = document.createElement("div");
-                card.className = "bg-gray-800 p-3 rounded-lg border border-gray-700 flex justify-between items-center";
+                card.className = "bg-gray-800 p-3 rounded-lg border border-gray-700 space-y-2";
+                
+                const asuntoEmail = encodeURIComponent("Notificación de Seguridad - Automatizacion de acceso de HTA fue cancelada");
+                const cuerpoEmail = encodeURIComponent(
+                    `Estimado,\n\nLa automatización de su acceso a la plataforma Hyundai HTA ha quedado cancelada debido a un error de credenciales y/o del sistema.\n\nRecuerde que su contraseña debe ser Automotor*2026. Por favor, actualícela en el portal si no es esa contraseña, o comuníquese con Esteban Fernandez al 0993541374.\n\nEnviele un mensaje de whatsapp como este:\n"Hola Esteban, cambie mi contraseña y ya no es Automotor*2026, lo volvere a cambiar, o si lo cambias tu, avisame porfavor. Saludos"`
+                );
+                
+                const mensajeWhatsapp = encodeURIComponent("Hola Esteban, cambie mi contraseña y ya no me funciona el acceso. Por favor avisame para coordinar. Saludos.");
+
                 card.innerHTML = `
-                    <div>
-                        <p class="text-sm font-bold text-gray-200">${u.usuario}</p>
-                        <p class="text-xs text-gray-400">Clave: ${u.password} | Grupo: ${u.grupo}</p>
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <p class="text-sm font-bold text-gray-200">${u.usuario}</p>
+                            <p class="text-xs text-gray-400">Clave: <span class="font-mono text-yellow-300">${u.password}</span> | Grupo: ${u.grupo}</p>
+                        </div>
+                        <div class="flex items-center space-x-1">
+                            <button onclick="toggleActivo('${u.id}', ${u.activo})" class="px-2 py-1 text-xs rounded font-semibold ${u.activo ? 'bg-green-600/20 text-green-400 border border-green-500/30' : 'bg-red-600/20 text-red-400 border border-red-500/30'}">
+                                ${u.activo ? 'Activo' : 'Inactivo'}
+                            </button>
+                            <button onclick="eliminarUsuario('${u.id}')" class="text-red-400 hover:text-red-300 text-xs px-1">🗑️</button>
+                        </div>
                     </div>
-                    <div class="flex items-center space-x-2">
-                        <button onclick="toggleActivo('${u.id}', ${u.activo})" class="px-2 py-1 text-xs rounded font-semibold ${u.activo ? 'bg-green-600/20 text-green-400 border border-green-500/30' : 'bg-red-600/20 text-red-400 border border-red-500/30'}">
-                            ${u.activo ? 'Activo' : 'Inactivo'}
-                        </button>
-                        <button onclick="eliminarUsuario('${u.id}')" class="text-red-400 hover:text-red-300 text-xs px-1">🗑️</button>
+                    
+                    <div class="flex space-x-2 border-t border-gray-700/50 pt-2 text-xs">
+                        <a href="mailto:${u.usuario}?subject=${asuntoEmail}&body=${cuerpoEmail}" 
+                           class="flex-1 bg-amber-600/20 hover:bg-amber-600/30 text-amber-300 border border-amber-500/30 text-center py-1 rounded font-semibold">
+                           ✉️ Enviar Notificación
+                        </a>
+                        <a href="https://wa.me/595993541374?text=${mensajeWhatsapp}" target="_blank"
+                           class="bg-green-600/20 hover:bg-green-600/30 text-green-300 border border-green-500/30 px-2 py-1 rounded font-semibold flex items-center">
+                           💬 WhatsApp
+                        </a>
                     </div>
                 `;
                 container.appendChild(card);
@@ -160,7 +246,14 @@
 
         function filtrarUsuarios() {
             const query = document.getElementById("searchInput").value.toLowerCase();
-            const filtrados = todosUsuarios.filter(u => u.usuario.toLowerCase().includes(query));
+            let filtrados = todosUsuarios.filter(u => u.usuario.toLowerCase().includes(query));
+
+            if (filtroActual === 'activos') {
+                filtrados = filtrados.filter(u => u.activo === true);
+            } else if (filtroActual === 'inactivos') {
+                filtrados = filtrados.filter(u => u.activo === false);
+            }
+
             renderUsuarios(filtrados);
         }
 
@@ -184,7 +277,6 @@
                 }).then(() => {
                     toggleModal();
                     document.getElementById("modalEmail").value = "";
-                    document.getElementById("modalPass").value = "";
                 });
             } else {
                 alert("Por favor completa el usuario y la contraseña.");
