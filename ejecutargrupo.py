@@ -3,6 +3,7 @@ import sys
 import json
 import time
 import smtplib
+import ssl
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from datetime import datetime
@@ -16,16 +17,47 @@ from playwright.sync_api import sync_playwright
 # ---------------------------------------------------------
 # CONFIGURACIÓN DE CORREO DE NOTIFICACIÓN Y REPORTES
 # ---------------------------------------------------------
-EMAIL_REMITENTE = "esteban.fernandez@automotor.com.py"  # Correo remitente (usa la contraseña en EMAIL_PASSWORD)
-EMAIL_DESTINATARIO = "revisioncuentahta@gmail.com"     # Correo destinatario final de reportes y alertas
+EMAIL_REMITENTE = "revisioncuentahta@gmail.com"     # Correo desde donde se envía (usa EMAIL_PASSWORD)
+EMAIL_DESTINATARIO = "revisioncuentahta@gmail.com"    # Correo donde recibes las alertas y reportes
+
+def enviar_correo_smtp(asunto, cuerpo_html):
+    """Envía correos utilizando SSL directo en el puerto 465 de forma robusta."""
+    email_pass = os.environ.get("EMAIL_PASSWORD")
+    if not email_pass:
+        print("⚠️ No se encontró la variable EMAIL_PASSWORD en los Secrets. Omitiendo envío de correo.")
+        return False
+
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = asunto
+    msg["From"] = EMAIL_REMITENTE
+    msg["To"] = EMAIL_DESTINATARIO
+    msg.attach(MIMEText(cuerpo_html, "html"))
+
+    context = ssl.create_default_context()
+
+    try:
+        # Intento primario por puerto 465 (SSL directo) para evitar cierres inesperados
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=context, timeout=30) as server:
+            server.login(EMAIL_REMITENTE, email_pass)
+            server.sendmail(EMAIL_REMITENTE, EMAIL_DESTINATARIO, msg.as_string())
+        print(f"📧 Correo enviado exitosamente a {EMAIL_DESTINATARIO} (vía SSL 465)")
+        return True
+    except Exception as e:
+        print(f"❌ Error al enviar correo por SSL (465): {e}")
+        # Intento secundario por puerto 587 (STARTTLS)
+        try:
+            with smtplib.SMTP("smtp.gmail.com", 587, timeout=30) as server:
+                server.starttls(context=context)
+                server.login(EMAIL_REMITENTE, email_pass)
+                server.sendmail(EMAIL_REMITENTE, EMAIL_DESTINATARIO, msg.as_string())
+            print(f"📧 Correo enviado exitosamente a {EMAIL_DESTINATARIO} (vía STARTTLS 587)")
+            return True
+        except Exception as e2:
+            print(f"❌ Error al reenviar correo por STARTTLS (587): {e2}")
+            return False
 
 def enviar_correo_inicio(grupo, tipo_ejecucion):
     """Envía un correo de notificación al iniciar la automatización."""
-    email_pass = os.environ.get("EMAIL_PASSWORD")
-    if not email_pass:
-        print("⚠️ No se encontró EMAIL_PASSWORD. Omitiendo notificación de inicio.")
-        return
-
     asunto = f"🚀 [INICIO] Automatización Hyundai HTA - Grupo {grupo}"
     hora_actual = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
     
@@ -38,44 +70,25 @@ def enviar_correo_inicio(grupo, tipo_ejecucion):
           <p>Se ha iniciado una nueva ejecución del robot de automatización.</p>
           <ul>
             <li><strong>Grupo Ejecutado:</strong> Grupo {grupo}</li>
-            <li><strong>Modo:</strong> {tipo_ejecucion}</li>
+            <li><strong>Modo de Ejecución:</strong> {tipo_ejecucion}</li>
             <li><strong>Fecha y Hora:</strong> {hora_actual}</li>
             <li><strong>Estado:</strong> 🟢 En Proceso</li>
           </ul>
+          <p style="text-align: center; font-size: 11px; color: #777;">Notificación automática enviada desde GitHub Actions.</p>
         </div>
       </body>
     </html>
     """
-
-    msg = MIMEMultipart("alternative")
-    msg["Subject"] = asunto
-    msg["From"] = EMAIL_REMITENTE
-    msg["To"] = EMAIL_DESTINATARIO
-    msg.attach(MIMEText(cuerpo_html, "html"))
-
-    try:
-        server = smtplib.SMTP("smtp.gmail.com", 587)
-        server.starttls()
-        server.login(EMAIL_REMITENTE, email_pass)
-        server.sendmail(EMAIL_REMITENTE, EMAIL_DESTINATARIO, msg.as_string())
-        server.quit()
-        print(f"📧 Correo de notificación de inicio enviado a {EMAIL_DESTINATARIO}")
-    except Exception as e:
-        print(f"❌ Error al enviar correo de inicio: {e}")
+    enviar_correo_smtp(asunto, cuerpo_html)
 
 def enviar_reporte_final(grupo, tipo_ejecucion, exitosos, fallidos):
     """Envía un reporte detallado con los usuarios que ingresaron y los que fallaron con su motivo."""
-    email_pass = os.environ.get("EMAIL_PASSWORD")
-    if not email_pass:
-        print("⚠️ No se encontró EMAIL_PASSWORD. Omitiendo reporte final.")
-        return
-
     hora_actual = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
     total_procesados = len(exitosos) + len(fallidos)
     
     asunto = f"📊 [REPORTE FINAL] Grupo {grupo} - {len(exitosos)}/{total_procesados} Correctos - Hyundai HTA"
 
-    # Construir filas de usuarios exitosos
+    # Construir filas para la tabla de exitosos
     filas_exitosos = ""
     for u in exitosos:
         filas_exitosos += f"""
@@ -87,7 +100,7 @@ def enviar_reporte_final(grupo, tipo_ejecucion, exitosos, fallidos):
     if not exitosos:
         filas_exitosos = "<tr><td colspan='2' style='padding: 8px; color: #777;'>Ningún usuario ingresó exitosamente.</td></tr>"
 
-    # Construir filas de usuarios fallidos
+    # Construir filas para la tabla de fallidos
     filas_fallidos = ""
     for u in fallidos:
         filas_fallidos += f"""
@@ -97,7 +110,7 @@ def enviar_reporte_final(grupo, tipo_ejecucion, exitosos, fallidos):
         </tr>
         """
     if not fallidos:
-        filas_fallidos = "<tr><td colspan='2' style='padding: 8px; color: #16a34a; font-weight: bold;'>🎉 ¡Genial! No hubo fallas en ningún usuario.</td></tr>"
+        filas_fallidos = "<tr><td colspan='2' style='padding: 8px; color: #16a34a; font-weight: bold;'>🎉 ¡Genial! Todos los técnicos ingresaron correctamente.</td></tr>"
 
     cuerpo_html = f"""
     <html>
@@ -107,7 +120,7 @@ def enviar_reporte_final(grupo, tipo_ejecucion, exitosos, fallidos):
           <p style="text-align: center; color: #64748b; font-size: 13px;">Grupo {grupo} | Modo: {tipo_ejecucion} | {hora_actual}</p>
           <hr style="border: 0; border-top: 1px solid #e0e0e0; margin-bottom: 20px;">
 
-          <!-- Resumen Numérico -->
+          <!-- Tarjetas de Resumen -->
           <table style="width: 100%; margin-bottom: 20px; text-align: center;">
             <tr>
               <td style="background-color: #f1f5f9; padding: 12px; border-radius: 8px; width: 30%;">
@@ -160,22 +173,7 @@ def enviar_reporte_final(grupo, tipo_ejecucion, exitosos, fallidos):
       </body>
     </html>
     """
-
-    msg = MIMEMultipart("alternative")
-    msg["Subject"] = asunto
-    msg["From"] = EMAIL_REMITENTE
-    msg["To"] = EMAIL_DESTINATARIO
-    msg.attach(MIMEText(cuerpo_html, "html"))
-
-    try:
-        server = smtplib.SMTP("smtp.gmail.com", 587)
-        server.starttls()
-        server.login(EMAIL_REMITENTE, email_pass)
-        server.sendmail(EMAIL_REMITENTE, EMAIL_DESTINATARIO, msg.as_string())
-        server.quit()
-        print(f"📧 Reporte final enviado exitosamente a {EMAIL_DESTINATARIO}")
-    except Exception as e:
-        print(f"❌ Error al enviar el reporte final: {e}")
+    enviar_correo_smtp(asunto, cuerpo_html)
 
 # ---------------------------------------------------------
 # 1. INICIALIZACIÓN DE FIREBASE
@@ -279,75 +277,4 @@ with sync_playwright() as p:
     page = browser.new_page()
 
     for idx, tec in enumerate(lista_tecnicos, start=1):
-        email = tec.get("usuario", "desconocido")
-        clave = tec.get("password", "")
-
-        print(f"[{idx}/{total_tecnicos}] Procesando técnico: {email}")
-
-        db.collection("monitoreo").document("estado").set({
-            "en_proceso": True,
-            "usuario_actual": email,
-            "progreso": f"{idx}/{total_tecnicos}",
-            "fallos_count": len(usuarios_fallidos),
-            "ultima_actualizacion": firestore.SERVER_TIMESTAMP
-        }, merge=True)
-
-        try:
-            # Simulación de interacción / Login en HTA con Playwright
-            time.sleep(2)
-
-            tec_doc_ref = db.collection("tecnicos").document(email)
-            doc_snap = tec_doc_ref.get()
-
-            nuevos_accesos = 1
-            if doc_snap.exists:
-                datos_tec = doc_snap.to_dict()
-                if datos_tec.get("mes_acceso") == mes_actual_str:
-                    nuevos_accesos = (datos_tec.get("accesos_mes") or 0) + 1
-
-                tec_doc_ref.update({
-                    "accesos_mes": nuevos_accesos,
-                    "mes_acceso": mes_actual_str,
-                    "ultimo_acceso_exitoso": firestore.SERVER_TIMESTAMP
-                })
-
-            usuarios_exitosos.append({
-                "email": email,
-                "accesos": nuevos_accesos
-            })
-            print(f"✅ Procesado con éxito: {email}")
-
-        except Exception as e:
-            error_detalle = str(e)
-            if "Timeout" in error_detalle:
-                motivo = "El servidor HTA no respondió a tiempo (Timeout)"
-            elif "Target closed" in error_detalle:
-                motivo = "Se cerró la conexión inesperadamente con el portal HTA"
-            else:
-                motivo = f"Error en credencial o sistema: {error_detalle}"
-
-            print(f"❌ Error al procesar a {email}: {motivo}")
-            usuarios_fallidos.append({
-                "email": email,
-                "motivo": motivo
-            })
-            
-            db.collection("monitoreo").document("estado").set({
-                "fallos_count": len(usuarios_fallidos)
-            }, merge=True)
-
-    browser.close()
-
-# ---------------------------------------------------------
-# 7. FINALIZACIÓN Y ENVÍO DEL REPORTE FINAL POR CORREO
-# ---------------------------------------------------------
-db.collection("monitoreo").document("estado").set({
-    "en_proceso": False,
-    "usuario_actual": "---",
-    "progreso": f"Finalizado ({total_tecnicos}/{total_tecnicos})",
-    "ultima_actualizacion": firestore.SERVER_TIMESTAMP
-}, merge=True)
-
-print("🎉 Proceso finalizado. Enviando reporte detallado por correo...")
-enviar_reporte_final(grupo_a_ejecutar, tipo_ejecucion, usuarios_exitosos, usuarios_fallidos)
-print("🏁 Proceso completado exitosamente.")
+        email = tec.get("usuario", "
