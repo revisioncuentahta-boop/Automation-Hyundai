@@ -3,6 +3,7 @@ import sys
 import json
 import time
 import pandas as pd
+from datetime import datetime
 import firebase_admin
 from firebase_admin import credentials, firestore
 import google.generativeai as genai
@@ -25,6 +26,9 @@ if not firebase_admin._apps:
 
 db = firestore.client()
 
+# Identificador del mes actual (Ejemplo: "2026-10")
+mes_actual_str = datetime.now().strftime("%Y-%m")
+
 # ---------------------------------------------------------
 # 2. CONFIGURACIÓN DE GEMINI API
 # ---------------------------------------------------------
@@ -42,7 +46,7 @@ if len(sys.argv) > 1:
     grupo_a_ejecutar = str(sys.argv[1]).strip()
     print(f"📌 Grupo recibido por argumento de línea de comandos: {grupo_a_ejecutar}")
 
-# B) Consultar si existe una orden de ejecución manual enviada desde la App Web
+# B) Consultar si existe una orden de ejecución manual enviada desde Firebase
 manual_doc_ref = db.collection("config").document("ejecucion_manual")
 manual_doc = manual_doc_ref.get()
 
@@ -50,7 +54,7 @@ if manual_doc.exists:
     datos_manuales = manual_doc.to_dict()
     if datos_manuales.get("solicitado") is True:
         grupo_a_ejecutar = str(datos_manuales.get("grupo", "1")).strip()
-        print(f"🤖 Solicitud manual detectada desde la App Web para el Grupo: {grupo_a_ejecutar}")
+        print(f"🤖 Solicitud manual detectada desde Firebase para el Grupo: {grupo_a_ejecutar}")
         
         # Limpiar la bandera para evitar ejecuciones repetidas involuntarias
         manual_doc_ref.update({"solicitado": False})
@@ -98,7 +102,7 @@ if total_tecnicos == 0:
     sys.exit(0)
 
 # ---------------------------------------------------------
-# 6. LÓGICA DE AUTOMATIZACIÓN PLAYWRIGHT
+# 6. LÓGICA DE AUTOMATIZACIÓN PLAYWRIGHT & CONTEO DE ACCESOS
 # ---------------------------------------------------------
 fallos_acumulados = 0
 
@@ -122,9 +126,30 @@ with sync_playwright() as p:
         }, merge=True)
 
         try:
-            # Aquí va tu flujo de navegación en HTA con Playwright
-            time.sleep(2)  # Simulación de interacción
-            print(f"✅ Procesado con éxito: {email}")
+            # Flujo de interacción con Playwright
+            time.sleep(2)  # Simulación de proceso de login/navegación en HTA
+
+            # --- REGISTRO Y SUMA DE ACCESOS MENSUALES EN FIREBASE ---
+            tec_doc_ref = db.collection("tecnicos").document(email)
+            doc_snap = tec_doc_ref.get()
+
+            if doc_snap.exists:
+                datos_tec = doc_snap.to_dict()
+                
+                # Verificar si la última actualización corresponde al mes actual
+                if datos_tec.get("mes_acceso") == mes_actual_str:
+                    nuevos_accesos = (datos_tec.get("accesos_mes") or 0) + 1
+                else:
+                    # Nuevo mes detectado: se reinicia el contador a 1
+                    nuevos_accesos = 1
+
+                tec_doc_ref.update({
+                    "accesos_mes": nuevos_accesos,
+                    "mes_acceso": mes_actual_str,
+                    "ultimo_acceso_exitoso": firestore.SERVER_TIMESTAMP
+                })
+
+            print(f"✅ Procesado con éxito: {email} | Accesos del mes ({mes_actual_str}): {nuevos_accesos}")
 
         except Exception as e:
             print(f"❌ Error al procesar a {email}: {e}")
