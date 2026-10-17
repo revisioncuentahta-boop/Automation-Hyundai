@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Hyundai Monitor HTA - WRC</title>
-    <!-- Tailwind CSS CDN con tipografía Inter -->
+    <!-- Tailwind CSS CDN con tipografía Inter/Plus Jakarta Sans -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     
@@ -19,14 +19,6 @@
                 extend: {
                     fontFamily: {
                         sans: ['Plus Jakarta Sans', 'sans-serif'],
-                    },
-                    colors: {
-                        brand: {
-                            50: '#f0f6ff',
-                            500: '#2563eb',
-                            600: '#1d4ed8',
-                            900: '#0f172a',
-                        }
                     }
                 }
             }
@@ -84,7 +76,7 @@
             </button>
         </div>
 
-        <!-- Botón de Acción Manual Sofisticado -->
+        <!-- Botón de Acción Manual -->
         <div class="glass-card p-4 rounded-2xl shadow-2xl space-y-3">
             <div class="flex justify-between items-center">
                 <span class="text-[10px] font-extrabold uppercase tracking-widest text-blue-400">Ejecución Manual por Grupo</span>
@@ -196,7 +188,7 @@
         let filtroActual = 'todos';
         let sistemaPausado = false;
 
-        // Obtener identificador del mes actual (Ejemplo: "2026-10")
+        // Formateador estandarizado de mes actual (YYYY-MM)
         const ahora = new Date();
         const mesActualClave = `${ahora.getFullYear()}-${String(ahora.getMonth() + 1).padStart(2, '0')}`;
         
@@ -287,12 +279,18 @@
                 const card = document.createElement("div");
                 card.className = "glass-card p-3.5 rounded-2xl space-y-2.5 shadow-lg border border-slate-700/50";
                 
-                // Conteo de accesos del mes actual (Si cambia de mes, mostrará 0 automáticamente)
-                const accesosDelMes = (u.mes_acceso === mesActualClave) ? (u.accesos_mes || 0) : 0;
+                // Verificación y lectura directa del conteo de accesos de Firebase
+                let accesosDelMes = 0;
+                if (u.mes_acceso === mesActualClave) {
+                    accesosDelMes = Number(u.accesos_mes) || 0;
+                } else if (u.accesos_mes && !u.mes_acceso) {
+                    // Si ya tenía accesos guardados previamente
+                    accesosDelMes = Number(u.accesos_mes);
+                }
 
-                const asuntoEmail = encodeURIComponent("Notificación de Seguridad - Automatizacion de acceso de HTA fue cancelada");
+                const asuntoEmail = encodeURIComponent("Notificación de Seguridad - Automatización de acceso HTA");
                 const cuerpoEmail = encodeURIComponent(
-                    `Estimado,\n\nLa automatización de su acceso a la plataforma Hyundai HTA ha quedado cancelada debido a un error de credenciales y/o del sistema.\n\nRecuerde que su contraseña debe ser Automotor*2026. Por favor, actualícela en el portal si no es esa contraseña, o comuníquese con Esteban Fernandez al 0993541374.\n\nEnviele un mensaje de whatsapp como este:\n"Hola Esteban, cambie mi contraseña y ya no es Automotor*2026, lo volvere a cambiar, o si lo cambias tu, avisame porfavor. Saludos"`
+                    `Estimado,\n\nLe recordamos que su cuenta de acceso a la plataforma Hyundai HTA requiere ingresar antes de finalizar el mes.\n\nRecuerde que su contraseña debe ser Automotor*2026.`
                 );
 
                 card.innerHTML = `
@@ -358,7 +356,7 @@
                     activo: true,
                     accesos_mes: 0,
                     mes_acceso: mesActualClave
-                }).then(() => {
+                }, { merge: true }).then(() => {
                     toggleModal();
                     document.getElementById("modalEmail").value = "";
                 });
