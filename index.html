@@ -4,11 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Hyundai Monitor HTA - WRC</title>
-    <!-- Tailwind CSS CDN con tipografía Inter/Plus Jakarta Sans -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     
-    <!-- Librerías estables v8 de Firebase -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 
@@ -40,15 +38,12 @@
             background: linear-gradient(135deg, rgba(37, 99, 235, 0.9), rgba(29, 78, 216, 0.9));
             box-shadow: 0 4px 15px rgba(37, 99, 235, 0.35);
         }
-        .glass-btn:hover {
-            box-shadow: 0 6px 20px rgba(37, 99, 235, 0.5);
-        }
     </style>
 </head>
-<body class="text-slate-100 min-h-screen p-4 sm:p-6 font-sans antialiased selection:bg-blue-500 selection:text-white">
+<body class="text-slate-100 min-h-screen p-4 sm:p-6 font-sans antialiased">
     <div class="max-w-md mx-auto space-y-6">
         
-        <!-- Encabezado Principal -->
+        <!-- Header -->
         <div class="flex justify-between items-center pb-2 border-b border-slate-800">
             <div>
                 <div class="flex items-center gap-2">
@@ -59,40 +54,38 @@
                 </div>
                 <p class="text-xs text-slate-400 font-medium">Panel de Control & Automatización HTA</p>
             </div>
-            <span id="status-badge" class="px-3 py-1 rounded-full text-xs font-bold bg-slate-800 text-slate-400 border border-slate-700/80 shadow-inner">
+            <span id="status-badge" class="px-3 py-1 rounded-full text-xs font-bold bg-slate-800 text-slate-400 border border-slate-700/80">
                 Cargando...
             </span>
         </div>
 
-        <!-- Botón Maestro de Suspensión General -->
-        <div id="pause-banner" class="glass-card p-4 rounded-2xl flex justify-between items-center shadow-2xl transition-all">
+        <!-- Botón Maestro Pausa -->
+        <div id="pause-banner" class="glass-card p-4 rounded-2xl flex justify-between items-center shadow-2xl">
             <div>
-                <p class="text-[10px] text-slate-400 uppercase font-black tracking-wider">Estado de Automatización</p>
+                <p class="text-[10px] text-slate-400 uppercase font-black tracking-wider">Estado del Sistema</p>
                 <p id="pause-status-text" class="text-xs font-bold text-emerald-400 mt-0.5">🟢 Sistema Operativo</p>
             </div>
             <button id="btn-toggle-pause" onclick="togglePausarSistema()" 
-                    class="bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 px-3.5 py-2 rounded-xl text-xs font-semibold transition active:scale-95">
+                    class="bg-amber-500/10 text-amber-300 border border-amber-500/30 px-3.5 py-2 rounded-xl text-xs font-semibold">
                 ⏸️ Suspender
             </button>
         </div>
 
-        <!-- Botón de Acción Manual -->
+        <!-- Botón Ejecución Manual -->
         <div class="glass-card p-4 rounded-2xl shadow-2xl space-y-3">
             <div class="flex justify-between items-center">
                 <span class="text-[10px] font-extrabold uppercase tracking-widest text-blue-400">Ejecución Manual por Grupo</span>
-                <span class="text-[10px] text-slate-400">GitHub Cloud</span>
             </div>
             <a href="https://github.com/revisioncuentahta-boop/Automation-Hyundai/actions/workflows/diario.yml" 
                target="_blank" 
-               class="glass-btn w-full py-3 px-4 rounded-xl font-bold text-xs text-white text-center flex items-center justify-center gap-2.5 transition active:scale-95 cursor-pointer">
-                <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
+               class="glass-btn w-full py-3 px-4 rounded-xl font-bold text-xs text-white text-center flex items-center justify-center gap-2.5 cursor-pointer">
                 <span>Abrir Consola de Ejecución Manual</span>
             </a>
         </div>
 
-        <!-- Estado en Tiempo Real -->
+        <!-- Estado en Vivo -->
         <div class="glass-card p-4 rounded-2xl shadow-2xl space-y-3">
-            <h2 class="text-xs font-bold text-slate-300 uppercase tracking-wider border-b border-slate-700/50 pb-2">Estado del Servidor en Vivo</h2>
+            <h2 class="text-xs font-bold text-slate-300 uppercase border-b border-slate-700/50 pb-2">Estado del Servidor en Vivo</h2>
             <div class="grid grid-cols-3 gap-2 text-center pt-1">
                 <div class="bg-slate-800/50 p-2.5 rounded-xl border border-slate-700/50">
                     <p class="text-[10px] text-slate-400 font-semibold uppercase">Usuario Actual</p>
@@ -109,25 +102,22 @@
             </div>
         </div>
 
-        <!-- Gestión de Usuarios y Accesos Mensuales -->
+        <!-- Monitoreo -->
         <div class="space-y-4">
             <div class="flex justify-between items-center">
-                <div>
-                    <h2 class="text-xs font-bold text-slate-300 uppercase tracking-wider">Monitoreo de Accesos</h2>
-                    <p id="mes-actual-label" class="text-[10px] text-blue-400 font-semibold mt-0.5">Mes: Cargando...</p>
-                </div>
-                <button onclick="toggleModal()" class="bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded-xl text-xs font-bold shadow-lg shadow-blue-600/30 transition active:scale-95">
+                <h2 class="text-xs font-bold text-slate-300 uppercase tracking-wider">Monitoreo de Accesos</h2>
+                <button onclick="toggleModal()" class="bg-blue-600 text-white px-3 py-1.5 rounded-xl text-xs font-bold shadow-lg">
                     + Nuevo Técnico
                 </button>
             </div>
 
-            <!-- Buscador y Filtros -->
+            <!-- Buscador -->
             <div class="space-y-2">
-                <input type="text" id="searchInput" onkeyup="filtrarUsuarios()" placeholder="🔍 Buscar técnico..." 
-                       class="w-full bg-slate-900/80 border border-slate-700/80 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-blue-500 transition shadow-inner">
+                <input type="text" id="searchInput" onkeyup="filtrarUsuarios()" placeholder="🔍 Buscar nombre, correo o taller..." 
+                       class="w-full bg-slate-900/80 border border-slate-700/80 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-blue-500">
                 
                 <div class="flex space-x-2 text-xs">
-                    <button onclick="setFiltro('todos')" id="btn-filtro-todos" class="px-3 py-1.5 rounded-xl bg-blue-600 font-bold text-white shadow-md">Todos</button>
+                    <button onclick="setFiltro('todos')" id="btn-filtro-todos" class="px-3 py-1.5 rounded-xl bg-blue-600 font-bold text-white">Todos</button>
                     <button onclick="setFiltro('activos')" id="btn-filtro-activos" class="px-3 py-1.5 rounded-xl bg-slate-800 text-slate-400 border border-slate-700">Activos</button>
                     <button onclick="setFiltro('inactivos')" id="btn-filtro-inactivos" class="px-3 py-1.5 rounded-xl bg-slate-800 text-slate-400 border border-slate-700">Inactivos</button>
                 </div>
@@ -135,26 +125,26 @@
 
             <!-- Lista de Usuarios -->
             <div id="users-list" class="space-y-3 max-h-96 overflow-y-auto pr-1">
-                <p class="text-xs text-slate-500 text-center py-6">Cargando lista de técnicos...</p>
+                <p class="text-xs text-slate-500 text-center py-6">Cargando técnicos...</p>
             </div>
         </div>
     </div>
 
-    <!-- Modal Agregar Usuario -->
+    <!-- Modal Agregar -->
     <div id="userModal" class="fixed inset-0 bg-slate-950/80 hidden items-center justify-center p-4 z-50 backdrop-blur-md">
-        <div class="glass-card p-6 rounded-2xl w-full max-w-sm space-y-4 shadow-2xl border border-slate-700/80">
+        <div class="glass-card p-6 rounded-2xl w-full max-w-sm space-y-4 border border-slate-700/80">
             <h3 class="text-base font-bold text-white">Agregar Nuevo Técnico</h3>
             <div>
                 <label class="text-[11px] font-semibold text-slate-400 uppercase">Correo Electrónico</label>
-                <input type="email" id="modalEmail" placeholder="tecnico@hyundai.com" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-xs text-white mt-1 focus:outline-none focus:border-blue-500">
+                <input type="email" id="modalEmail" placeholder="tecnico@hyundai.com" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-xs text-white mt-1">
             </div>
             <div>
                 <label class="text-[11px] font-semibold text-slate-400 uppercase">Contraseña</label>
-                <input type="text" id="modalPass" value="Automotor*2026" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-xs text-white mt-1 focus:outline-none focus:border-blue-500">
+                <input type="text" id="modalPass" value="Automotor*2026" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-xs text-white mt-1">
             </div>
             <div>
                 <label class="text-[11px] font-semibold text-slate-400 uppercase">Grupo por Día</label>
-                <select id="modalGrupo" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-xs text-white mt-1 focus:outline-none focus:border-blue-500">
+                <select id="modalGrupo" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-xs text-white mt-1">
                     <option value="1">Grupo 1 (Lunes)</option>
                     <option value="2">Grupo 2 (Martes)</option>
                     <option value="3">Grupo 3 (Miércoles)</option>
@@ -163,8 +153,8 @@
                 </select>
             </div>
             <div class="flex justify-end space-x-2 pt-2">
-                <button onclick="toggleModal()" class="px-4 py-2 text-xs text-slate-400 hover:text-white font-semibold">Cancelar</button>
-                <button onclick="guardarUsuario()" class="bg-blue-600 hover:bg-blue-500 px-4 py-2 rounded-xl text-xs font-bold text-white shadow-lg shadow-blue-600/30">Guardar</button>
+                <button onclick="toggleModal()" class="px-4 py-2 text-xs text-slate-400 font-semibold">Cancelar</button>
+                <button onclick="guardarUsuario()" class="bg-blue-600 px-4 py-2 rounded-xl text-xs font-bold text-white">Guardar</button>
             </div>
         </div>
     </div>
@@ -184,24 +174,159 @@
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
 
+        // BASE DE DATOS DE NOMBRES Y UBICACIONES EXTRAÍDAS DEL ARCHIVO EXCEL
+        const datosUsuariosExcel = {
+            "mikicaballero89@gmail.com": {"nombre": "Jose Caballero", "ubicacion": "Taller Artigas"},
+            "munhosmiguel1990@gmail.com": {"nombre": "Miguel Muñoz", "ubicacion": "Taller Optima"},
+            "candiamtias08@gmail.com": {"nombre": "Matias Candia Candia", "ubicacion": "Taller Artigas"},
+            "miguelmeza997@gmail.com": {"nombre": "Miguel Angel Meza", "ubicacion": "Taller Artigas"},
+            "mirtha.franco1994@gmail.com": {"nombre": "Mirtha Graciela Franco", "ubicacion": "Taller Artigas"},
+            "nicoemmaq@gmail.com": {"nombre": "Nicolas Acosta Acosta", "ubicacion": "Taller Artigas"},
+            "ayalan544@gmail.com": {"nombre": "Nicolas Ezequiel Ayala", "ubicacion": "Taller Artigas"},
+            "marinnicolas657@gmail.com": {"nombre": "Nicolas Marin Marin", "ubicacion": "Taller Artigas"},
+            "montielruben.93@gmail.com": {"nombre": "Rubén Orué", "ubicacion": "Taller Artigas"},
+            "pcvm83@gmail.com": {"nombre": "Victor Concha Peña", "ubicacion": "Taller Artigas"},
+            "oruevictor71@gmail.com": {"nombre": "Victor Orue Orue", "ubicacion": "Taller Artigas"},
+            "rigorolon1@hotmail.com": {"nombre": "rigoberto Rolon Rolon", "ubicacion": "Taller Artigas"},
+            "marioacunaescobar@gmail.com": {"nombre": "Mario Acuña Acuña", "ubicacion": "Taller Juan-K"},
+            "alfonzomiguel065@gmail.com": {"nombre": "Miguel Alfonzo Alfonzo", "ubicacion": "Taller Juan-K"},
+            "mario.cordove@automotor.com.py": {"nombre": "Mario Alberto Cordove", "ubicacion": "Encarnacion-Servicios"},
+            "walter.piris@automotor.com.py": {"nombre": "WALTER JONATHAN PIRIS", "ubicacion": "Encarnacion-Servicios"},
+            "denilson.ferreira@automotor.com.py": {"nombre": "denilson moises ferreira", "ubicacion": "Encarnacion-Servicios"},
+            "jessicalujan1@hotmail.com": {"nombre": "Jessica Caceres Caceres", "ubicacion": "Automotor CDE"},
+            "mariogonduarte@gmail.com": {"nombre": "Mario Gonzalez", "ubicacion": "Automotor CDE"},
+            "nilsonibandenisgarcete@gmail.com": {"nombre": "Nilson Iban Denis", "ubicacion": "Automotor CDE"},
+            "vvidal.mor@gmail.com": {"nombre": "Victor Vidal Moreno", "ubicacion": "Lubrimor Servicios"},
+            "fogasausa@hotmail.com": {"nombre": "gustavo fogasa", "ubicacion": "Taller Fogasa"},
+            "sergiofrias957@gmail.com": {"nombre": "Sergio Bernabe Frias", "ubicacion": "Bazzo Servicios"},
+            "lorena.iglesia@sanpablotruck.com.py": {"nombre": "Dolores Lorena Iglesia Colman", "ubicacion": "San Pablo"},
+            "david.morinigo@automotorpy.com": {"nombre": "David Morinigo", "ubicacion": "Taller Artigas"},
+            "ernesto.otazo@automotor.com.py": {"nombre": "Ernesto Otazo", "ubicacion": "Taller Artigas"},
+            "humberto.farina@automotor.com.py": {"nombre": "Humberto Fariña", "ubicacion": "Taller Artigas"},
+            "jearson24@gmail.com": {"nombre": "Jearson Coronel", "ubicacion": "Taller Artigas"},
+            "cesar.arias@automotor.com.py": {"nombre": "Cesar Arias", "ubicacion": "Taller Artigas"},
+            "santimereles159@gmail.com": {"nombre": "Cesar Mereles", "ubicacion": "Taller Artigas"},
+            "cesarverdun89@gmail.com": {"nombre": "Cesar Verdun", "ubicacion": "Taller Artigas"},
+            "cservian77@gmail.com": {"nombre": "Cesar Hernan Servian", "ubicacion": "Taller Artigas"},
+            "cb826389@gmail.com": {"nombre": "Claudio Benítez Benítez", "ubicacion": "Taller Artigas"},
+            "cristhian.candia96@gmail.com": {"nombre": "Cristian Candia Candia", "ubicacion": "Taller Artigas"},
+            "david.vera@automotor.com.py": {"nombre": "David Vera Vera", "ubicacion": "Taller Artigas"},
+            "fieldrepresentative@automotor.com.py": {"nombre": "Dominguez Enrique Claudio", "ubicacion": "Taller Artigas"},
+            "elvioantoniobenitezvillalba45@gmail.com": {"nombre": "Elvio Benitez Benitez", "ubicacion": "Taller Artigas"},
+            "elopez90fleitas@hotmail.com": {"nombre": "Enrique David Lopez", "ubicacion": "Taller Artigas"},
+            "fsmartinezmendoza@gmail.com": {"nombre": "FERNANDO MARTINEZ MARTINEZ", "ubicacion": "Taller Artigas"},
+            "facu_calfani@hotmail.com": {"nombre": "Facundo Calfani", "ubicacion": "Taller Artigas"},
+            "guidoelizeche@gmail.com": {"nombre": "Guido Elizeche", "ubicacion": "Taller Artigas"},
+            "caballeroariel81@gmail.com": {"nombre": "Gustavo Caballero", "ubicacion": "Taller Artigas"},
+            "horacio.alvarenga@automotor.com.py": {"nombre": "Horacio Alvarenga", "ubicacion": "Taller Artigas"},
+            "hugo.prieto@automotor.com.py": {"nombre": "Hugo Prieto", "ubicacion": "Taller Artigas"},
+            "hugo86torrado@gmail.com": {"nombre": "Hugo torrado Torrado", "ubicacion": "Taller Artigas"},
+            "ivan.marin@automotor.com.py": {"nombre": "Ivan Marin", "ubicacion": "Taller Artigas"},
+            "johanatorres53@gmail.com": {"nombre": "Johana Gianina Torres", "ubicacion": "Taller Artigas"},
+            "rojasrisso@gmail.com": {"nombre": "Jorge Rojas Risso", "ubicacion": "Taller Artigas"},
+            "jose.aveiro@automotor.com.py": {"nombre": "Jose Aveiro Aveiro", "ubicacion": "Taller Artigas"},
+            "joseka1999@hotmail.com": {"nombre": "Jose Carlos Cuellar", "ubicacion": "Taller Artigas"},
+            "juanvipaez@icloud.com": {"nombre": "Juan Vicente Paez", "ubicacion": "Taller Artigas"},
+            "adolfo.gonzalez@automotor.com.py": {"nombre": "Julio Gonzalez Gonzalez", "ubicacion": "Taller Artigas"},
+            "luis.escobar@automotor.com.py": {"nombre": "Luis Escobar", "ubicacion": "Taller Artigas"},
+            "marcosojeda52@gmail.com": {"nombre": "Marcos Ojeda Ojeda", "ubicacion": "Taller Artigas"},
+            "richard.melgarejo@automotor.com.py": {"nombre": "RICHARD MELGAREJO CANO", "ubicacion": "Taller Artigas"},
+            "reginobogado10@gmail.com": {"nombre": "Regino Bogado Bogado", "ubicacion": "Taller Artigas"},
+            "robertoalmiron874@gmail.com": {"nombre": "Roberto Almiron", "ubicacion": "Taller Artigas"},
+            "tobiasar96@gmail.com": {"nombre": "Tobias Veron Veron", "ubicacion": "Taller Artigas"},
+            "victor.buffet@gmail.com": {"nombre": "Victor Buffet", "ubicacion": "Taller Artigas"},
+            "vggd1986@gmail.com": {"nombre": "Victor Gimenez", "ubicacion": "Taller Artigas"},
+            "victorhugososagonzalez@gmail.com": {"nombre": "Victor Sosa", "ubicacion": "Taller Artigas"},
+            "camilogistica02@gmail.com": {"nombre": "Camilo Vera Vera", "ubicacion": "Taller Juan-K"},
+            "gustavoalfonso.gam@gmail.com": {"nombre": "Gustavo Alfonso Alfonso", "ubicacion": "Taller Juan-K"},
+            "henryhammer0701@gmail.com": {"nombre": "Henry Hammer Hammer", "ubicacion": "Taller Juan-K"},
+            "jorgedanielayala32@gmail.com": {"nombre": "Jorge Ayala Ayala", "ubicacion": "Taller Juan-K"},
+            "marcelo.silvero@juank.com.py": {"nombre": "Marcelo Silvero", "ubicacion": "Taller Juan-K"},
+            "taller@cpaatsservice.com": {"nombre": "Cristian Paats", "ubicacion": "Taller Cristian Paats."},
+            "ivancolman16@hotmail.com": {"nombre": "Ivan Colman", "ubicacion": "Taller Braun S.R.L."},
+            "karlwiebe@autocenter.com.py": {"nombre": "Karl Wiebe", "ubicacion": "Taller Autocenter"},
+            "marcelo.ruizdiaz@automotor.com.py": {"nombre": "Marcelo Daniel Ruiz Diaz Guerrero", "ubicacion": "Encarnacion-Servicios"},
+            "fernandoalcaraz016@gmail.com": {"nombre": "fernando alcaraz", "ubicacion": "Encarnacion-Servicios"},
+            "edimarvillalbap@gmail.com": {"nombre": "Jose Edismar Villalba", "ubicacion": "Premium Repuestos"},
+            "hernan.edwards@automotor.com.py": {"nombre": "Hernan Edwards Edwards", "ubicacion": "Automotor CDE"},
+            "luiscaceresfretes89@gmail.com": {"nombre": "Luis Armando Caceres", "ubicacion": "Automotor CDE"},
+            "rnvillalba11@gmail.com": {"nombre": "Ramon Villalba", "ubicacion": "Automotor CDE"},
+            "chaku352@gmail.com": {"nombre": "Ruben Benitez Benitez", "ubicacion": "Automotor CDE"},
+            "gustavo@fogasaautoparts.com": {"nombre": "Gustavo Domsbki", "ubicacion": "Taller Fogasa"},
+            "rodriarsasrt@gmail.com": {"nombre": "Rodrigo Arias Arias", "ubicacion": "Taller Fogasa"},
+            "marcelobntz801@gmail.com": {"nombre": "Marcelo Benitez", "ubicacion": "Autocentro San Roque"},
+            "karappafer@hotmail.com": {"nombre": "Fernando Rodrigo Castro", "ubicacion": "Autodiesel Paraná"},
+            "bazzoservice.py@gmail.com": {"nombre": "Larissa Bazzo Althaus", "ubicacion": "Bazzo Servicios"},
+            "bazcar_f1@hotmail.com": {"nombre": "Vanderlei Junior Bazzo", "ubicacion": "Bazzo Servicios"},
+            "cfda1992@hotmail.com": {"nombre": "Christian Fabian Diaz", "ubicacion": "Taller S. Carlos"},
+            "rodasbordon@gmail.com": {"nombre": "Carlos Rodas", "ubicacion": "Motor Mec"},
+            "luismarinayala7@gmail.com": {"nombre": "Luis Manuel Marin Ayala", "ubicacion": "Motor Mec"},
+            "gerjonik@gmail.com": {"nombre": "Jonik Gerbrand Gerbrand", "ubicacion": "Motormack"},
+            "leandroklassen42@gmail.com": {"nombre": "Leandro Klassen Klassen", "ubicacion": "Motormack"},
+            "carlosdiazf61@hotmail.com": {"nombre": "Carlos Alberto Diaz", "ubicacion": "Taller San Carlos"},
+            "hernandejesusgonzalezchavez@gmail.com": {"nombre": "Hernan Gonzalez Chavez", "ubicacion": "Taller Optima"},
+            "paredes7902@gmail.com": {"nombre": "Ramón Paredes", "ubicacion": "Taller Optima"},
+            "ovidio22051985@gmail.com": {"nombre": "OVIDIO NUÑEZ", "ubicacion": "Taller Zoto"},
+            "simroth66@gmail.com": {"nombre": "Simon Roth", "ubicacion": "Altona"},
+            "centucarlc@gmail.com": {"nombre": "LUIS CRISTALDO", "ubicacion": "Centucar"},
+            "danielmartinez7895@gmail.com": {"nombre": "Jesús Martínez Gusman", "ubicacion": "Rectificadora campo 9"},
+            "entrenamiento@automotor.com.py": {"nombre": "Alberto Guanes", "ubicacion": "Taller Artigas"},
+            "alexis_da@hotmail.es": {"nombre": "Alexis Daniel Araujo", "ubicacion": "Taller Artigas"},
+            "fabrizio.meza@automotor.com.py": {"nombre": "Fabrizio Meza", "ubicacion": "Taller Artigas"},
+            "adrianriveros567@gmail.com": {"nombre": "Adrian Riveros Riveros", "ubicacion": "Taller Artigas"},
+            "alcides.rodas@automotor.com.py": {"nombre": "Alcides Rodas", "ubicacion": "Taller Artigas"},
+            "alexiscubilla32@gmail.com": {"nombre": "Alexis Cubilla Cubilla", "ubicacion": "Taller Artigas"},
+            "angelespinola2000@outlook.com": {"nombre": "Angel Espinola", "ubicacion": "Taller Artigas"},
+            "osmargomez96@outlook.com": {"nombre": "Aristides Gomes Gomes", "ubicacion": "Taller Artigas"},
+            "blasgaleano1988@gmail.com": {"nombre": "Blas Galeano", "ubicacion": "Taller Artigas"},
+            "carlos.rojas@automotor.com.py": {"nombre": "Carlos Rojas Rojas", "ubicacion": "Taller Artigas"},
+            "eg6694435@gmail.com": {"nombre": "Edgar Gonzalez Gonzalez", "ubicacion": "Taller Artigas"},
+            "reyprz@hotmail.com": {"nombre": "Reinerio Perez", "ubicacion": "Taller Artigas"},
+            "rubendavidroman@hotmail.com": {"nombre": "Ruben David Roman", "ubicacion": "Taller Artigas"},
+            "alankuhner.ak@gmail.com": {"nombre": "Alan Kuhner Kuhner", "ubicacion": "Taller Juan-K"},
+            "autocenterchaco@gmail.com": {"nombre": "Tidor Balzer", "ubicacion": "Taller Autocenter"},
+            "oportoarnaldo84@gmail.com": {"nombre": "Arnaldo Oporto", "ubicacion": "Automotor CDE"},
+            "isra-gomez08@hotmail.com": {"nombre": "Israel Gomez", "ubicacion": "Automotor CDE"},
+            "alemor998@gmail.com": {"nombre": "Alejandro Moreno", "ubicacion": "Lubrimor Servicios"},
+            "santacruzamalio907@gmail.com": {"nombre": "Amalio SAntacruz", "ubicacion": "Autocentro LB"},
+            "lccarsmultiservicios@gmail.com": {"nombre": "Luis Chavez", "ubicacion": "LC Cars"},
+            "anakarolinagonzalves25@outlook.com": {"nombre": "Ana Karolina Gonzalves", "ubicacion": "Autodiesel Paraná"},
+            "minonicelly19@gmail.com": {"nombre": "Nicelly Miño Velázquez", "ubicacion": "Motor Mec"},
+            "rodrigo.flor@sanpablotruck.com.py": {"nombre": "Carlos Rodrigo Flor Rolon", "ubicacion": "San Pablo"},
+            "everchaparro23@gmail.com": {"nombre": "Ever Chaparro", "ubicacion": "No Limits"},
+            "aquilessamaniego78@gmail.com": {"nombre": "Aquiles Samaniego Samaniego", "ubicacion": "Taller Artigas"},
+            "davisinchori@gmail.com": {"nombre": "Arnold Gomez Gomez", "ubicacion": "Taller Artigas"},
+            "lorenzo.martinez@automotor.com.py": {"nombre": "Lorenzo Matias Martinez Bobadilla", "ubicacion": "Taller Artigas"},
+            "jose.acosta@juank.com.py": {"nombre": "Jose Acosta", "ubicacion": "Taller Juan-K"},
+            "juan.borges@fernheim.com.py": {"nombre": "Juan Borges", "ubicacion": "Cooperativa Industrial Chaco"},
+            "alejosanabria412@gmail.com": {"nombre": "Alejo Joel Nuñez", "ubicacion": "Taller Cristian Paats."},
+            "britezmolinas20000002@gmail.com": {"nombre": "Ariel Britez", "ubicacion": "Taller Autocenter"},
+            "chavezabel1993@gmail.com": {"nombre": "Abel Chávez", "ubicacion": "Taller S. Carlos"},
+            "riverosalfredo889@gmail.com": {"nombre": "ALFREDO RIVEROS", "ubicacion": "Norte Autos"},
+            "nelsonasva@gmail.com": {"nombre": "Asva Nelson", "ubicacion": "Taller Artigas"},
+            "adilsonarevalos4@gmail.com": {"nombre": "Adilson Arèvalos", "ubicacion": "LC Cars"},
+            "piter151081@gmail.com": {"nombre": "Hugo Silvero", "ubicacion": "Juank Hohenau"},
+            "felixtadeodiaz995@gmail.com": {"nombre": "FELIX TADEO DIAZ ARGUELLO", "ubicacion": "Taller San Carlos"},
+            "bianca.acosta@automotor.com.py": {"nombre": "Bianca Acosta Acosta", "ubicacion": "Taller Artigas"},
+            "juan.rodriguez@automotor.com.py": {"nombre": "Juan Rodríguez", "ubicacion": "Taller Artigas"},
+            "stefanrempel119@gmail.com": {"nombre": "Stefan Rempel Rempel", "ubicacion": "Taller Braun S.R.L."},
+            "calixtoquin89@gmail.com": {"nombre": "Calixto Quinteros Quinteros", "ubicacion": "Automotor CDE"},
+            "rodryvidal@hotmail.com": {"nombre": "Rodrigo Moreno", "ubicacion": "Lubrimor Servicios"},
+            "larissadejesusalfonzo@gmail.com": {"nombre": "Larissa Alfonzo Alfonzo", "ubicacion": "LC Cars"},
+            "jorge.chamorro@juank.com.py": {"nombre": "Jorge Chamorro", "ubicacion": "Juank Hohenau"},
+            "gustavo.rojas@juank.com.py": {"nombre": "Gustavo Rojas", "ubicacion": "Juank Hohenau"}
+        };
+
         let todosUsuarios = [];
         let filtroActual = 'todos';
         let sistemaPausado = false;
 
-        // Formateador estandarizado de mes actual (YYYY-MM)
-        const ahora = new Date();
-        const mesActualClave = `${ahora.getFullYear()}-${String(ahora.getMonth() + 1).padStart(2, '0')}`;
-        
-        const nombresMeses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
-        document.getElementById("mes-actual-label").innerText = `Mes Activo: ${nombresMeses[ahora.getMonth()]} ${ahora.getFullYear()}`;
-
-        // Escuchar estado de pausa global
         db.collection("config").doc("global").onSnapshot(doc => {
             if (doc.exists) {
                 sistemaPausado = doc.data().automatizacion_pausada || false;
                 actualizarInterfazPausado();
             }
-        }, err => console.log("Error config:", err));
+        });
 
         function actualizarInterfazPausado() {
             const txt = document.getElementById("pause-status-text");
@@ -210,24 +335,19 @@
                 txt.innerText = "🛑 Automatización Pausada";
                 txt.className = "text-xs font-bold text-rose-400 mt-0.5";
                 btn.innerText = "▶️ Reanudar";
-                btn.className = "bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-3.5 py-2 rounded-xl text-xs font-semibold transition active:scale-95";
             } else {
                 txt.innerText = "🟢 Sistema Operativo";
                 txt.className = "text-xs font-bold text-emerald-400 mt-0.5";
                 btn.innerText = "⏸️ Suspender";
-                btn.className = "bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 px-3.5 py-2 rounded-xl text-xs font-semibold transition active:scale-95";
             }
         }
 
         function togglePausarSistema() {
-            const nuevoEstado = !sistemaPausado;
             db.collection("config").doc("global").set({
-                automatizacion_pausada: nuevoEstado,
-                ultima_modificacion: firebase.firestore.FieldValue.serverTimestamp()
+                automatizacion_pausada: !sistemaPausado
             }, { merge: true });
         }
 
-        // Monitoreo en tiempo real
         db.collection("monitoreo").doc("estado").onSnapshot(doc => {
             if (doc.exists) {
                 const data = doc.data();
@@ -243,7 +363,7 @@
                 document.getElementById("progreso-texto").innerText = data.progreso || "0/0";
                 document.getElementById("fallos-count").innerText = data.fallos_count || "0";
             }
-        }, err => console.log("Error monitoreo:", err));
+        });
 
         function cargarUsuarios() {
             db.collection("tecnicos").onSnapshot(snapshot => {
@@ -252,18 +372,16 @@
                     todosUsuarios.push({ id: doc.id, ...doc.data() });
                 });
                 filtrarUsuarios();
-            }, err => console.log("Error tecnicos:", err));
+            });
         }
 
         function setFiltro(tipo) {
             filtroActual = tipo;
             ['todos', 'activos', 'inactivos'].forEach(f => {
                 const btn = document.getElementById(`btn-filtro-${f}`);
-                if (f === tipo) {
-                    btn.className = "px-3 py-1.5 rounded-xl bg-blue-600 font-bold text-white shadow-md";
-                } else {
-                    btn.className = "px-3 py-1.5 rounded-xl bg-slate-800 text-slate-400 border border-slate-700";
-                }
+                btn.className = (f === tipo) 
+                    ? "px-3 py-1.5 rounded-xl bg-blue-600 font-bold text-white shadow-md"
+                    : "px-3 py-1.5 rounded-xl bg-slate-800 text-slate-400 border border-slate-700";
             });
             filtrarUsuarios();
         }
@@ -272,50 +390,53 @@
             const container = document.getElementById("users-list");
             container.innerHTML = "";
             if (lista.length === 0) {
-                container.innerHTML = `<p class="text-xs text-slate-500 text-center py-6">No se encontraron técnicos registrados.</p>`;
+                container.innerHTML = `<p class="text-xs text-slate-500 text-center py-6">No hay técnicos.</p>`;
                 return;
             }
             lista.forEach(u => {
                 const card = document.createElement("div");
-                card.className = "glass-card p-3.5 rounded-2xl space-y-2.5 shadow-lg border border-slate-700/50";
+                card.className = "glass-card p-3.5 rounded-2xl space-y-2.5 border border-slate-700/50";
                 
-                // Verificación y lectura directa del conteo de accesos de Firebase
-                let accesosDelMes = 0;
-                if (u.mes_acceso === mesActualClave) {
-                    accesosDelMes = Number(u.accesos_mes) || 0;
-                } else if (u.accesos_mes && !u.mes_acceso) {
-                    // Si ya tenía accesos guardados previamente
-                    accesosDelMes = Number(u.accesos_mes);
+                const emailKey = (u.usuario || u.id || "").toLowerCase().trim();
+                const infoExtra = datosUsuariosExcel[emailKey];
+
+                // Si se encuentra en la lista extra, se arma la cabecera con Nombre + Ubicación; si no, se salta nomás
+                let tituloUsuario = `<p class="text-xs font-bold text-slate-100">${u.usuario || u.id}</p>`;
+                if (infoExtra) {
+                    tituloUsuario = `
+                        <div class="space-y-0.5">
+                            <p class="text-xs font-extrabold text-white">${infoExtra.nombre}</p>
+                            <p class="text-[11px] font-semibold text-blue-400">📍 ${infoExtra.ubicacion}</p>
+                            <p class="text-[10px] text-slate-400">${u.usuario || u.id}</p>
+                        </div>
+                    `;
                 }
 
-                const asuntoEmail = encodeURIComponent("Notificación de Seguridad - Automatización de acceso HTA");
-                const cuerpoEmail = encodeURIComponent(
-                    `Estimado,\n\nLe recordamos que su cuenta de acceso a la plataforma Hyundai HTA requiere ingresar antes de finalizar el mes.\n\nRecuerde que su contraseña debe ser Automotor*2026.`
-                );
+                const accesos = Number(u.accesos_mes) || 0;
 
                 card.innerHTML = `
                     <div class="flex justify-between items-start">
-                        <div class="space-y-0.5">
-                            <p class="text-xs font-bold text-slate-100">${u.usuario}</p>
-                            <p class="text-[11px] text-slate-400">Clave: <span class="font-mono text-amber-300 font-semibold">${u.password}</span> | Grupo: ${u.grupo}</p>
-                        </div>
+                        ${tituloUsuario}
                         <div class="flex items-center space-x-1.5">
-                            <button onclick="toggleActivo('${u.id}', ${u.activo})" class="px-2.5 py-1 text-[11px] rounded-lg font-semibold transition ${u.activo ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30' : 'bg-rose-500/10 text-rose-400 border border-rose-500/30'}">
+                            <button onclick="toggleActivo('${u.id}', ${u.activo})" class="px-2.5 py-1 text-[11px] rounded-lg font-semibold ${u.activo ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30' : 'bg-rose-500/10 text-rose-400 border border-rose-500/30'}">
                                 ${u.activo ? 'Activo' : 'Inactivo'}
                             </button>
-                            <button onclick="eliminarUsuario('${u.id}')" class="text-slate-500 hover:text-rose-400 text-xs p-1 transition">🗑️</button>
+                            <button onclick="eliminarUsuario('${u.id}')" class="text-slate-500 hover:text-rose-400 text-xs p-1">🗑️</button>
                         </div>
                     </div>
                     
                     <div class="flex justify-between items-center pt-2 border-t border-slate-700/50 text-[11px]">
-                        <div class="flex items-center gap-1.5">
-                            <span class="text-slate-400">Accesos en el mes:</span>
-                            <span class="px-2 py-0.5 rounded-md font-bold ${accesosDelMes > 0 ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30' : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'}">
-                                🔑 ${accesosDelMes} accesos
-                            </span>
+                        <div class="space-y-0.5">
+                            <p class="text-[10px] text-slate-400">Clave: <span class="font-mono text-amber-300 font-semibold">${u.password || '---'}</span> | Grupo: ${u.grupo || 1}</p>
+                            <div class="flex items-center gap-1.5 pt-0.5">
+                                <span class="text-slate-400">Accesos:</span>
+                                <span class="px-2 py-0.5 rounded-md font-bold ${accesos > 0 ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30' : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'}">
+                                    🔑 ${accesos} accesos
+                                </span>
+                            </div>
                         </div>
-                        <a href="mailto:${u.usuario}?subject=${asuntoEmail}&body=${cuerpoEmail}" 
-                           class="text-amber-400 hover:text-amber-300 font-semibold underline decoration-amber-500/30">
+                        <a href="mailto:${u.usuario}?subject=Aviso HTA&body=Estimado(a), le recordamos ingresar a la plataforma HTA." 
+                           class="text-amber-400 font-semibold underline text-[10px]">
                            Enviar aviso
                         </a>
                     </div>
@@ -325,14 +446,18 @@
         }
 
         function filtrarUsuarios() {
-            const query = document.getElementById("searchInput").value.toLowerCase();
-            let filtrados = todosUsuarios.filter(u => u.usuario.toLowerCase().includes(query));
+            const query = document.getElementById("searchInput").value.toLowerCase().trim();
+            let filtrados = todosUsuarios.filter(u => {
+                const email = (u.usuario || u.id || "").toLowerCase();
+                const info = datosUsuariosExcel[email];
+                const nombre = info ? info.nombre.toLowerCase() : "";
+                const ubicacion = info ? info.ubicacion.toLowerCase() : "";
+                
+                return email.includes(query) || nombre.includes(query) || ubicacion.includes(query);
+            });
 
-            if (filtroActual === 'activos') {
-                filtrados = filtrados.filter(u => u.activo === true);
-            } else if (filtroActual === 'inactivos') {
-                filtrados = filtrados.filter(u => u.activo === false);
-            }
+            if (filtroActual === 'activos') filtrados = filtrados.filter(u => u.activo === true);
+            if (filtroActual === 'inactivos') filtrados = filtrados.filter(u => u.activo === false);
 
             renderUsuarios(filtrados);
         }
@@ -354,14 +479,13 @@
                     password: password,
                     grupo: grupo,
                     activo: true,
-                    accesos_mes: 0,
-                    mes_acceso: mesActualClave
+                    accesos_mes: 0
                 }, { merge: true }).then(() => {
                     toggleModal();
                     document.getElementById("modalEmail").value = "";
                 });
             } else {
-                alert("Por favor completa el correo y la contraseña.");
+                alert("Completa todos los campos.");
             }
         }
 
@@ -370,7 +494,7 @@
         }
 
         function eliminarUsuario(id) {
-            if (confirm(`¿Seguro que deseas eliminar a ${id}?`)) {
+            if (confirm(`¿Eliminar a ${id}?`)) {
                 db.collection("tecnicos").doc(id).delete();
             }
         }
