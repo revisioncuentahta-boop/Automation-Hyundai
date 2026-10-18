@@ -8,7 +8,6 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from datetime import datetime
 import zoneinfo
-import pandas as pd
 import firebase_admin
 from firebase_admin import credentials, firestore
 from google.cloud.firestore_v1.base_query import FieldFilter
@@ -16,35 +15,25 @@ import google.generativeai as genai
 from playwright.sync_api import sync_playwright
 
 # ---------------------------------------------------------
-# FUNCIÓN AUXILIAR DE FECHA Y HORA OFICIAL (PARAGUAY UTC-3)
+# FUNCIÓN AUXILIAR DE FECHA Y HORA (PARAGUAY UTC-3)
 # ---------------------------------------------------------
 def obtener_hora_paraguay():
-    """Retorna la fecha y hora formateada según la zona horaria local de Paraguay."""
     try:
         tz = zoneinfo.ZoneInfo("America/Asuncion")
         return datetime.now(tz).strftime("%d/%m/%Y %H:%M:%S")
     except Exception:
         return datetime.now().strftime("%d/%m/%Y %H:%M:%S")
 
-def obtener_mes_paraguay():
-    """Retorna el identificador del mes actual (YYYY-MM) en Paraguay."""
-    try:
-        tz = zoneinfo.ZoneInfo("America/Asuncion")
-        return datetime.now(tz).strftime("%Y-%m")
-    except Exception:
-        return datetime.now().strftime("%Y-%m")
-
 # ---------------------------------------------------------
 # CONFIGURACIÓN DE CORREO DE NOTIFICACIÓN Y REPORTES
 # ---------------------------------------------------------
-EMAIL_REMITENTE = "revisioncuentahta@gmail.com"     # Correo desde donde se envía
-EMAIL_DESTINATARIO = "revisioncuentahta@gmail.com"    # Correo donde recibes las alertas
+EMAIL_REMITENTE = "revisioncuentahta@gmail.com"
+EMAIL_DESTINATARIO = "revisioncuentahta@gmail.com"
 
 def enviar_correo_smtp(asunto, cuerpo_html):
-    """Envía correos utilizando SSL directo en el puerto 465 de forma robusta."""
     email_pass = os.environ.get("EMAIL_PASSWORD")
     if not email_pass:
-        print("⚠️ No se encontró la variable EMAIL_PASSWORD en los Secrets. Omitiendo envío de correo.")
+        print("⚠️ No se encontró EMAIL_PASSWORD. Omitiendo correo.")
         return False
 
     msg = MIMEMultipart("alternative")
@@ -59,36 +48,26 @@ def enviar_correo_smtp(asunto, cuerpo_html):
         with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=context, timeout=30) as server:
             server.login(EMAIL_REMITENTE, email_pass)
             server.sendmail(EMAIL_REMITENTE, EMAIL_DESTINATARIO, msg.as_string())
-        print(f"📧 Correo enviado exitosamente a {EMAIL_DESTINATARIO} (vía SSL 465)")
+        print(f"📧 Correo enviado a {EMAIL_DESTINATARIO}")
         return True
     except Exception as e:
-        print(f"❌ Error al enviar correo por SSL (465): {e}")
-        try:
-            with smtplib.SMTP("smtp.gmail.com", 587, timeout=30) as server:
-                server.starttls(context=context)
-                server.login(EMAIL_REMITENTE, email_pass)
-                server.sendmail(EMAIL_REMITENTE, EMAIL_DESTINATARIO, msg.as_string())
-            print(f"📧 Correo enviado exitosamente a {EMAIL_DESTINATARIO} (vía STARTTLS 587)")
-            return True
-        except Exception as e2:
-            print(f"❌ Error al reenviar correo por STARTTLS (587): {e2}")
-            return False
+        print(f"❌ Error enviando correo: {e}")
+        return False
 
 def enviar_correo_inicio(grupo, tipo_ejecucion):
     asunto = f"🚀 [INICIO] Automatización Hyundai HTA - Grupo {grupo}"
     hora_actual = obtener_hora_paraguay()
-    
     cuerpo_html = f"""
     <html>
       <body style="font-family: Arial, sans-serif; color: #333; line-height: 1.6;">
         <div style="max-width: 550px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 10px; padding: 20px; background-color: #f9f9f9;">
           <h2 style="color: #2563eb; text-align: center;">🏎️ Hyundai Monitor HTA</h2>
           <hr style="border: 0; border-top: 1px solid #e0e0e0;">
-          <p>Se ha iniciado una nueva ejecución del robot de automatización.</p>
+          <p>Se ha iniciado una nueva ejecución del robot.</p>
           <ul>
-            <li><strong>Grupo Ejecutado:</strong> Grupo {grupo}</li>
-            <li><strong>Modo de Ejecución:</strong> {tipo_ejecucion}</li>
-            <li><strong>Fecha y Hora:</strong> {hora_actual} (Hora Paraguay)</li>
+            <li><strong>Grupo:</strong> Grupo {grupo}</li>
+            <li><strong>Modo:</strong> {tipo_ejecucion}</li>
+            <li><strong>Fecha y Hora:</strong> {hora_actual}</li>
             <li><strong>Estado:</strong> 🟢 En Proceso</li>
           </ul>
         </div>
@@ -99,82 +78,25 @@ def enviar_correo_inicio(grupo, tipo_ejecucion):
 
 def enviar_reporte_final(grupo, tipo_ejecucion, exitosos, fallidos):
     hora_actual = obtener_hora_paraguay()
-    total_procesados = len(exitosos) + len(fallidos)
-    
-    asunto = f"📊 [REPORTE FINAL] Grupo {grupo} - {len(exitosos)}/{total_procesados} Correctos - Hyundai HTA"
+    total = len(exitosos) + len(fallidos)
+    asunto = f"📊 [REPORTE FINAL] Grupo {grupo} - {len(exitosos)}/{total} Correctos - Hyundai HTA"
 
-    filas_exitosos = ""
-    for u in exitosos:
-        filas_exitosos += f"""
-        <tr>
-            <td style="padding: 8px; border-bottom: 1px solid #eee;">{u['email']}</td>
-            <td style="padding: 8px; border-bottom: 1px solid #eee; color: #16a34a; font-weight: bold;">✅ Éxito ({u['accesos']}º acceso del mes)</td>
-        </tr>
-        """
-    if not exitosos:
-        filas_exitosos = "<tr><td colspan='2' style='padding: 8px; color: #777;'>Ningún usuario ingresó exitosamente.</td></tr>"
+    filas_exitosos = "".join([f"<tr><td style='padding:8px;'>{u['email']}</td><td style='padding:8px; color:#16a34a; font-weight:bold;'>✅ Éxito ({u['accesos']}º acceso registrado)</td></tr>" for u in exitosos])
+    if not exitosos: filas_exitosos = "<tr><td colspan='2' style='padding:8px;'>Ninguno exitoso</td></tr>"
 
-    filas_fallidos = ""
-    for u in fallidos:
-        filas_fallidos += f"""
-        <tr>
-            <td style="padding: 8px; border-bottom: 1px solid #eee;">{u['email']}</td>
-            <td style="padding: 8px; border-bottom: 1px solid #eee; color: #dc2626;">❌ {u['motivo']}</td>
-        </tr>
-        """
-    if not fallidos:
-        filas_fallidos = "<tr><td colspan='2' style='padding: 8px; color: #16a34a; font-weight: bold;'>🎉 ¡Genial! Todos los técnicos ingresaron correctamente.</td></tr>"
+    filas_fallidos = "".join([f"<tr><td style='padding:8px;'>{u['email']}</td><td style='padding:8px; color:#dc2626;'>❌ {u['motivo']}</td></tr>" for u in fallidos])
+    if not fallidos: filas_fallidos = "<tr><td colspan='2' style='padding:8px; color:#16a34a;'>🎉 ¡Todos correctos!</td></tr>"
 
     cuerpo_html = f"""
     <html>
-      <body style="font-family: Arial, sans-serif; color: #333; line-height: 1.6;">
-        <div style="max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 10px; padding: 20px; background-color: #ffffff;">
-          <h2 style="color: #1e293b; text-align: center;">📊 Reporte Final de Automatización HTA</h2>
-          <p style="text-align: center; color: #64748b; font-size: 13px;">Grupo {grupo} | Modo: {tipo_ejecucion} | {hora_actual} (Paraguay)</p>
-          <hr style="border: 0; border-top: 1px solid #e0e0e0; margin-bottom: 20px;">
-
-          <table style="width: 100%; margin-bottom: 20px; text-align: center;">
-            <tr>
-              <td style="background-color: #f1f5f9; padding: 12px; border-radius: 8px; width: 30%;">
-                <span style="font-size: 11px; color: #64748b; font-weight: bold; display: block;">PROCESADOS</span>
-                <span style="font-size: 18px; font-weight: bold; color: #0f172a;">{total_procesados}</span>
-              </td>
-              <td style="background-color: #dcfce7; padding: 12px; border-radius: 8px; width: 30%;">
-                <span style="font-size: 11px; color: #15803d; font-weight: bold; display: block;">EXITOSOS</span>
-                <span style="font-size: 18px; font-weight: bold; color: #166534;">{len(exitosos)}</span>
-              </td>
-              <td style="background-color: #fee2e2; padding: 12px; border-radius: 8px; width: 30%;">
-                <span style="font-size: 11px; color: #b91c1c; font-weight: bold; display: block;">FALLIDOS</span>
-                <span style="font-size: 18px; font-weight: bold; color: #991b1b;">{len(fallidos)}</span>
-              </td>
-            </tr>
-          </table>
-
-          <h3 style="color: #dc2626; font-size: 14px; margin-bottom: 8px;">⚠️ Usuarios con Errores ({len(fallidos)})</h3>
-          <table style="width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 25px;">
-            <thead>
-              <tr style="background-color: #fee2e2; text-align: left;">
-                <th style="padding: 8px; border-bottom: 2px solid #fca5a5;">Técnico / Usuario</th>
-                <th style="padding: 8px; border-bottom: 2px solid #fca5a5;">Motivo del Error</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filas_fallidos}
-            </tbody>
-          </table>
-
-          <h3 style="color: #16a34a; font-size: 14px; margin-bottom: 8px;">✅ Usuarios Procesados Correctamente ({len(exitosos)})</h3>
-          <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
-            <thead>
-              <tr style="background-color: #f0fdf4; text-align: left;">
-                <th style="padding: 8px; border-bottom: 2px solid #86efac;">Técnico / Usuario</th>
-                <th style="padding: 8px; border-bottom: 2px solid #86efac;">Estado / Conteo</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filas_exitosos}
-            </tbody>
-          </table>
+      <body style="font-family: Arial, sans-serif; color: #333;">
+        <div style="max-width: 600px; margin: 0 auto; border: 1px solid #ddd; padding: 20px; border-radius: 10px;">
+          <h2 style="text-align: center;">📊 Reporte Final HTA</h2>
+          <p style="text-align: center;">Grupo {grupo} | {hora_actual}</p>
+          <h3>✅ Exitosos ({len(exitosos)})</h3>
+          <table style="width:100%;">{filas_exitosos}</table>
+          <h3>⚠️ Fallidos ({len(fallidos)})</h3>
+          <table style="width:100%;">{filas_fallidos}</table>
         </div>
       </body>
     </html>
@@ -185,9 +107,8 @@ def enviar_reporte_final(grupo, tipo_ejecucion, exitosos, fallidos):
 # 1. INICIALIZACIÓN DE FIREBASE
 # ---------------------------------------------------------
 firebase_creds_json = os.environ.get("FIREBASE_CREDENTIALS")
-
 if not firebase_creds_json:
-    print("❌ ERROR: La variable de entorno FIREBASE_CREDENTIALS no está configurada.")
+    print("❌ ERROR: FIREBASE_CREDENTIALS no está configurada.")
     sys.exit(1)
 
 cred_dict = json.loads(firebase_creds_json)
@@ -197,24 +118,16 @@ if not firebase_admin._apps:
     firebase_admin.initialize_app(cred)
 
 db = firestore.client()
-mes_actual_str = obtener_mes_paraguay()
 
 # ---------------------------------------------------------
-# 2. CONFIGURACIÓN DE GEMINI API
-# ---------------------------------------------------------
-gemini_api_key = os.environ.get("GEMINI_API_KEY")
-if gemini_api_key:
-    genai.configure(api_key=gemini_api_key)
-
-# ---------------------------------------------------------
-# 3. DETERMINAR EL GRUPO A EJECUTAR
+# 2. DETERMINAR EL GRUPO A EJECUTAR
 # ---------------------------------------------------------
 grupo_a_ejecutar = None
-tipo_ejecucion = "Automática (Programada 08:00 AM)"
+tipo_ejecucion = "Automática (Programada)"
 
 if len(sys.argv) > 1:
     grupo_a_ejecutar = str(sys.argv[1]).strip()
-    tipo_ejecucion = "Manual (Desde GitHub Actions)"
+    tipo_ejecucion = "Manual (GitHub Actions)"
 
 manual_doc_ref = db.collection("config").document("ejecucion_manual")
 manual_doc = manual_doc_ref.get()
@@ -223,19 +136,17 @@ if manual_doc.exists:
     datos_manuales = manual_doc.to_dict()
     if datos_manuales.get("solicitado") is True:
         grupo_a_ejecutar = str(datos_manuales.get("grupo", "1")).strip()
-        tipo_ejecucion = "Manual (Desde App Web)"
+        tipo_ejecucion = "Manual (App Web)"
         manual_doc_ref.update({"solicitado": False})
 
 if not grupo_a_ejecutar:
     grupo_a_ejecutar = "1"
 
 print(f"🚀 Iniciando automatización para GRUPO {grupo_a_ejecutar} [{tipo_ejecucion}]")
-
-# Enviar correo de inicio
 enviar_correo_inicio(grupo_a_ejecutar, tipo_ejecucion)
 
 # ---------------------------------------------------------
-# 4. ACTUALIZAR ESTADO INICIAL EN MONITOREO
+# 3. MONITOREO INICIAL
 # ---------------------------------------------------------
 db.collection("monitoreo").document("estado").set({
     "en_proceso": True,
@@ -246,7 +157,7 @@ db.collection("monitoreo").document("estado").set({
 }, merge=True)
 
 # ---------------------------------------------------------
-# 5. OBTENER LECTURA DE TÉCNICOS DESDE FIREBASE
+# 4. OBTENER TÉCNICOS
 # ---------------------------------------------------------
 tecnicos_ref = db.collection("tecnicos")
 query = tecnicos_ref.where(filter=FieldFilter("grupo", "==", str(grupo_a_ejecutar))).where(filter=FieldFilter("activo", "==", True))
@@ -262,7 +173,6 @@ total_tecnicos = len(lista_tecnicos)
 print(f"📋 Se encontraron {total_tecnicos} técnicos activos en el Grupo {grupo_a_ejecutar}.")
 
 if total_tecnicos == 0:
-    print("⚠️ No hay técnicos activos registrados. Finalizando tarea.")
     db.collection("monitoreo").document("estado").set({
         "en_proceso": False,
         "usuario_actual": "---",
@@ -272,7 +182,7 @@ if total_tecnicos == 0:
     sys.exit(0)
 
 # ---------------------------------------------------------
-# 6. LÓGICA DE AUTOMATIZACIÓN PLAYWRIGHT & REPORTES
+# 5. AUTOMATIZACIÓN Y SUMA ATÓMICA DE ACCESOS
 # ---------------------------------------------------------
 usuarios_exitosos = []
 usuarios_fallidos = []
@@ -283,7 +193,6 @@ with sync_playwright() as p:
     for idx, tec in enumerate(lista_tecnicos, start=1):
         doc_id = tec.get("_doc_id")
         email = tec.get("usuario", "desconocido")
-        clave = tec.get("password", "")
 
         print(f"[{idx}/{total_tecnicos}] Procesando técnico: {email}")
 
@@ -295,59 +204,47 @@ with sync_playwright() as p:
             "ultima_actualizacion": firestore.SERVER_TIMESTAMP
         }, merge=True)
 
-        context = browser.new_context(viewport={"width": 1920, "height": 1080})
+        context = browser.new_context()
         page = context.new_page()
         page.set_default_timeout(30000)
 
         try:
-            time.sleep(2)
+            time.sleep(2)  # Simulación/Ejecución HTA
 
-            tec_doc_ref = db.collection("tecnicos").document(doc_id)
-            doc_snap = tec_doc_ref.get()
-
-            nuevos_accesos = 1
-            if doc_snap.exists:
-                datos_tec = doc_snap.to_dict()
-                if datos_tec.get("mes_acceso") == mes_actual_str:
-                    nuevos_accesos = (datos_tec.get("accesos_mes") or 0) + 1
-
-            tec_doc_ref.set({
-                "accesos_mes": nuevos_accesos,
-                "mes_acceso": mes_actual_str,
-                "ultimo_acceso_exitoso": firestore.SERVER_TIMESTAMP
+            # --- SUMA ATÓMICA DIRECTA EN FIREBASE ---
+            tec_ref = db.collection("tecnicos").document(doc_id)
+            
+            # Usamos Increment(1) nativo de Firestore
+            tec_ref.set({
+                "accesos_mes": firestore.Increment(1),
+                "ultimo_acceso": firestore.SERVER_TIMESTAMP
             }, merge=True)
+
+            # Leer valor actualizado para el reporte por correo
+            snap_actualizado = tec_ref.get()
+            conteo_nuevo = snap_actualizado.to_dict().get("accesos_mes", 1) if snap_actualizado.exists else 1
 
             usuarios_exitosos.append({
                 "email": email,
-                "accesos": nuevos_accesos
+                "accesos": conteo_nuevo
             })
-            print(f"✅ Procesado con éxito: {email} | Accesos actualizados en Firebase: {nuevos_accesos}")
+            print(f"✅ Procesado e incrementado con éxito: {email} | Total accesos: {conteo_nuevo}")
 
         except Exception as e:
-            error_detalle = str(e)
-            if "Timeout" in error_detalle:
-                motivo = "El servidor HTA no respondió a tiempo (Timeout)"
-            elif "Target closed" in error_detalle:
-                motivo = "Se cerró la conexión inesperadamente con el portal HTA"
-            else:
-                motivo = f"Error en credencial o sistema: {error_detalle[:100]}"
-
+            motivo = str(e)[:100]
             print(f"❌ Error al procesar a {email}: {motivo}")
             usuarios_fallidos.append({
                 "email": email,
                 "motivo": motivo
             })
-            
-            db.collection("monitoreo").document("estado").set({
-                "fallos_count": len(usuarios_fallidos)
-            }, merge=True)
+            db.collection("monitoreo").document("estado").set({"fallos_count": len(usuarios_fallidos)}, merge=True)
         finally:
             context.close()
 
     browser.close()
 
 # ---------------------------------------------------------
-# 7. FINALIZACIÓN Y ENVÍO DEL REPORTE FINAL POR CORREO
+# 6. FINALIZACIÓN
 # ---------------------------------------------------------
 db.collection("monitoreo").document("estado").set({
     "en_proceso": False,
@@ -356,6 +253,6 @@ db.collection("monitoreo").document("estado").set({
     "ultima_actualizacion": firestore.SERVER_TIMESTAMP
 }, merge=True)
 
-print("🎉 Proceso finalizado. Enviando reporte detallado por correo...")
+print("🎉 Proceso finalizado. Enviando reporte...")
 enviar_reporte_final(grupo_a_ejecutar, tipo_ejecucion, usuarios_exitosos, usuarios_fallidos)
-print("🏁 Proceso completado exitosamente.")
+print("🏁 Completado.")
