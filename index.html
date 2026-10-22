@@ -83,21 +83,33 @@
             </a>
         </div>
 
-        <!-- Estado en Vivo -->
-        <div class="glass-card p-3.5 rounded-2xl shadow-2xl space-y-2.5">
-            <h2 class="text-xs font-bold text-slate-300 uppercase border-b border-slate-700/50 pb-2">Estado del Servidor en Vivo</h2>
-            <div class="grid grid-cols-3 gap-2 text-center pt-0.5">
-                <div class="bg-slate-800/50 p-2 rounded-xl border border-slate-700/50">
-                    <p class="text-[9px] text-slate-400 font-semibold uppercase">Usuario Actual</p>
-                    <p id="usuario-actual" class="text-xs font-mono font-bold text-blue-400 mt-0.5 truncate">---</p>
-                </div>
-                <div class="bg-slate-800/50 p-2 rounded-xl border border-slate-700/50">
+        <!-- Estado en Vivo Mejorado con Barra de Porcentaje -->
+        <div class="glass-card p-4 rounded-2xl shadow-2xl space-y-3">
+            <div class="flex justify-between items-center border-b border-slate-700/50 pb-2">
+                <h2 class="text-xs font-bold text-slate-300 uppercase">Estado del Servidor en Vivo</h2>
+                <span id="porcentaje-texto" class="text-xs font-extrabold text-blue-400">0%</span>
+            </div>
+
+            <!-- Información del Proceso / Tarea -->
+            <div class="bg-slate-900/60 p-2.5 rounded-xl border border-slate-800/80 space-y-1">
+                <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Tarea en Ejecución:</p>
+                <p id="tarea-actual" class="text-xs font-semibold text-emerald-400">Esperando orden de inicio...</p>
+            </div>
+
+            <!-- Barra de Avance Dinámica -->
+            <div class="w-full bg-slate-900 rounded-full h-3.5 p-0.5 border border-slate-700/80 overflow-hidden">
+                <div id="barra-avance" class="bg-gradient-to-r from-blue-600 to-emerald-400 h-2.5 rounded-full transition-all duration-500 ease-out" style="width: 0%"></div>
+            </div>
+
+            <div class="grid grid-cols-3 gap-2 text-center pt-1">
+                <div class="bg-slate-800/50 p-2 rounded-xl border border-slate-700/50 col-span-1">
                     <p class="text-[9px] text-slate-400 font-semibold uppercase">Progreso</p>
                     <p id="progreso-texto" class="text-xs font-bold text-white mt-0.5">0/0</p>
                 </div>
-                <div class="bg-slate-800/50 p-2 rounded-xl border border-slate-700/50">
-                    <p class="text-[9px] text-slate-400 font-semibold uppercase">Fallos</p>
-                    <p id="fallos-count" class="text-xs font-bold text-rose-400 mt-0.5">0</p>
+                <div class="bg-slate-800/50 p-2 rounded-xl border border-slate-700/50 col-span-2">
+                    <p class="text-[9px] text-slate-400 font-semibold uppercase">Usuario Actual</p>
+                    <!-- Visualización completa del correo sin recortar -->
+                    <p id="usuario-actual" class="text-[11px] font-mono font-bold text-blue-300 mt-0.5 break-all">---</p>
                 </div>
             </div>
         </div>
@@ -123,7 +135,7 @@
                     <button onclick="setFiltro('inactivos')" id="btn-filtro-inactivos" class="px-3 py-1.5 rounded-xl bg-slate-800 text-slate-400 border border-slate-700">Inactivos</button>
                 </div>
 
-                <!-- Mejora 2: Filtro por Grupos (Lunes a Viernes) -->
+                <!-- Filtro por Grupos (Lunes a Viernes) -->
                 <div class="flex gap-1 overflow-x-auto pb-1 text-[10px]">
                     <button onclick="setFiltroGrupo('todos')" id="btn-grp-todos" class="px-2.5 py-1 rounded-lg bg-blue-600/30 text-blue-300 border border-blue-500/30 font-bold shrink-0">Todos Grps</button>
                     <button onclick="setFiltroGrupo('1')" id="btn-grp-1" class="px-2 py-1 rounded-lg bg-slate-800 text-slate-400 border border-slate-700 font-semibold shrink-0">G1 (Lun)</button>
@@ -174,7 +186,7 @@
     <div id="editModal" class="fixed inset-0 bg-slate-950/80 hidden items-center justify-center p-4 z-50 backdrop-blur-md">
         <div class="glass-card p-5 rounded-2xl w-full max-w-sm space-y-4 border border-slate-700/80">
             <h3 class="text-sm font-bold text-white uppercase">Editar Datos del Técnico</h3>
-            <p id="editUserEmail" class="text-xs font-mono text-blue-400 border-b border-slate-700 pb-2 truncate">---</p>
+            <p id="editUserEmail" class="text-xs font-mono text-blue-400 border-b border-slate-700 pb-2 break-all">---</p>
             <input type="hidden" id="editDocId">
             
             <div>
@@ -399,9 +411,15 @@
                     badge.className = "px-3 py-1 rounded-full text-xs font-bold bg-slate-800 text-slate-400 border border-slate-700/80";
                     badge.innerText = "⚪ INACTIVO";
                 }
+
+                // Actualización de Tarea, Usuario y Porcentaje con animación en la barra
+                document.getElementById("tarea-actual").innerText = data.tarea || "Esperando orden...";
                 document.getElementById("usuario-actual").innerText = data.usuario_actual || "---";
                 document.getElementById("progreso-texto").innerText = data.progreso || "0/0";
-                document.getElementById("fallos-count").innerText = data.fallos_count || "0";
+
+                const pct = Number(data.porcentaje) || 0;
+                document.getElementById("porcentaje-texto").innerText = pct + "%";
+                document.getElementById("barra-avance").style.width = pct + "%";
             }
         });
 
@@ -440,7 +458,6 @@
             filtrarUsuarios();
         }
 
-        // Mejora 3: Función de Copiado Rápido al Portapapeles
         function copiarTexto(texto) {
             navigator.clipboard.writeText(texto).then(() => {
                 alert("📋 Clave copiada al portapapeles: " + texto);
@@ -476,7 +493,6 @@
 
                 const accesos = Number(u.accesos_mes) || 0;
 
-                // Mejora 1: Formatear timestamp de último acceso
                 let ultimoAccesoTexto = "Sin registros";
                 if (u.ultimo_acceso) {
                     try {
@@ -488,7 +504,6 @@
                 }
 
                 card.innerHTML = `
-                    <!-- FILA SUPERIOR: Nombre e Info | Botón Activo + Papelera -->
                     <div class="flex justify-between items-start gap-2">
                         ${tituloUsuario}
                         <div class="flex items-center gap-1.5 shrink-0">
@@ -499,13 +514,11 @@
                         </div>
                     </div>
                     
-                    <!-- FILA INTERMEDIA: Datos de Clave, Accesos y Último Login -->
                     <div class="flex justify-between items-center pt-2 border-t border-slate-700/50 text-[11px]">
                         <div class="space-y-0.5">
                             <div class="flex items-center gap-1">
                                 <span class="text-[10px] text-slate-400">Clave HTA:</span>
                                 <span class="font-mono text-amber-300 font-semibold text-[10px]">${u.password || '---'}</span>
-                                <!-- Mejora 3: Botón Copiar -->
                                 <button onclick="copiarTexto('${u.password || ''}')" class="text-[9px] text-amber-300/80 hover:text-amber-300 bg-amber-500/10 px-1 rounded border border-amber-500/20 transition">
                                     📋 Copiar
                                 </button>
@@ -516,7 +529,6 @@
                                 <span class="px-2 py-0.5 rounded-md font-bold text-[10px] ${accesos > 0 ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30' : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'}">
                                     🔑 ${accesos} accesos
                                 </span>
-                                <!-- Mejora 1: Mostrar fecha de último acceso -->
                                 <span class="text-[9px] text-slate-400 font-mono">🕒 ${ultimoAccesoTexto}</span>
                             </div>
                         </div>
@@ -526,7 +538,6 @@
                         </a>
                     </div>
 
-                    <!-- FILA INFERIOR DE ACCIONES: Reintentar y Editar en tamaño uniforme -->
                     <div class="grid grid-cols-2 gap-2 pt-1 border-t border-slate-800">
                         <button onclick="reintentarUsuarioIndividual('${u.usuario || u.id}', '${u.grupo || 1}')" 
                                 class="w-full bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 border border-blue-500/30 py-1.5 rounded-xl font-bold text-[10px] text-center flex items-center justify-center gap-1 transition">
@@ -569,11 +580,9 @@
                 return email.includes(query) || nombre.includes(query) || ubicacion.includes(query);
             });
 
-            // Filtro por Estado (Activo / Inactivo)
             if (filtroActual === 'activos') filtrados = filtrados.filter(u => u.activo === true);
             if (filtroActual === 'inactivos') filtrados = filtrados.filter(u => u.activo === false);
 
-            // Mejora 2: Filtro por Grupo
             if (filtroGrupoActual !== 'todos') {
                 filtrados = filtrados.filter(u => String(u.grupo || "1") === filtroGrupoActual);
             }
