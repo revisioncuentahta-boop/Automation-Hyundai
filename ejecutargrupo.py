@@ -53,8 +53,8 @@ def enviar_correo_smtp(asunto, cuerpo_html):
         print(f"❌ Error enviando correo: {e}")
         return False
 
-def enviar_correo_inicio(grupo, tipo_ejecucion):
-    asunto = f"🚀 [INICIO PRODUCCIÓN] Automatización Hyundai HTA - Grupo {grupo}"
+def enviar_correo_inicio(detalle_ejecucion, tipo_ejecucion):
+    asunto = f"🚀 [INICIO] Automatización Hyundai HTA - {detalle_ejecucion}"
     hora_actual = obtener_hora_paraguay()
     cuerpo_html = f"""
     <html>
@@ -64,8 +64,8 @@ def enviar_correo_inicio(grupo, tipo_ejecucion):
           <hr style="border: 0; border-top: 1px solid #e0e0e0;">
           <p>Se ha iniciado la ejecución del robot de producción.</p>
           <ul>
-            <li><strong>Grupo Ejecutado:</strong> Grupo {grupo}</li>
-            <li><strong>Modo de Ejecución:</strong> {tipo_ejecucion}</li>
+            <li><strong>Modo / Objetivo:</strong> {detalle_ejecucion}</li>
+            <li><strong>Origen:</strong> {tipo_ejecucion}</li>
             <li><strong>Fecha y Hora:</strong> {hora_actual} (Paraguay)</li>
             <li><strong>Estado:</strong> 🟢 En Proceso</li>
           </ul>
@@ -75,28 +75,28 @@ def enviar_correo_inicio(grupo, tipo_ejecucion):
     """
     enviar_correo_smtp(asunto, cuerpo_html)
 
-def enviar_reporte_final(grupo, tipo_ejecucion, exitosos, fallidos):
+def enviar_reporte_final(detalle_ejecucion, tipo_ejecucion, exitosos, fallidos):
     hora_actual = obtener_hora_paraguay()
     total = len(exitosos) + len(fallidos)
-    asunto = f"📊 [REPORTE FINAL REAL] Grupo {grupo} - {len(exitosos)}/{total} Correctos - Hyundai HTA"
+    asunto = f"📊 [REPORTE FINAL] {detalle_ejecucion} - {len(exitosos)}/{total} Correctos"
 
-    filas_exitosos = "".join([f"<tr><td style='padding:8px; border-bottom:1px solid #eee;'>{u['email']}</td><td style='padding:8px; border-bottom:1px solid #eee; color:#16a34a; font-weight:bold;'>✅ Login HTA Verificado ({u['accesos']}º acceso del mes)</td></tr>" for u in exitosos])
+    filas_exitosos = "".join([f"<tr><td style='padding:8px; border-bottom:1px solid #eee;'>{u['email']}</td><td style='padding:8px; border-bottom:1px solid #eee; color:#16a34a; font-weight:bold;'>✅ Login HTA Verificado ({u['accesos']}º acceso registrado)</td></tr>" for u in exitosos])
     if not exitosos:
-        filas_exitosos = "<tr><td colspan='2' style='padding:8px; color:#777;'>Ningún usuario ingresó exitosamente a HTA.</td></tr>"
+        filas_exitosos = "<tr><td colspan='2' style='padding:8px; color:#777;'>Ningún usuario ingresó exitosamente.</td></tr>"
 
     filas_fallidos = "".join([f"<tr><td style='padding:8px; border-bottom:1px solid #eee;'>{u['email']}</td><td style='padding:8px; border-bottom:1px solid #eee; color:#dc2626;'>❌ {u['motivo']}</td></tr>" for u in fallidos])
     if not fallidos:
-        filas_fallidos = "<tr><td colspan='2' style='padding:8px; color:#16a34a; font-weight:bold;'>🎉 ¡Todos los técnicos autenticaron correctamente!</td></tr>"
+        filas_fallidos = "<tr><td colspan='2' style='padding:8px; color:#16a34a; font-weight:bold;'>🎉 ¡Todos los accesos procesados fueron exitosos!</td></tr>"
 
     cuerpo_html = f"""
     <html>
       <body style="font-family: Arial, sans-serif; color: #333; line-height: 1.6;">
         <div style="max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 10px; padding: 20px; background-color: #ffffff;">
-          <h2 style="color: #1e293b; text-align: center;">📊 Reporte Final HTA - Producción</h2>
-          <p style="text-align: center; color: #64748b; font-size: 13px;">Grupo {grupo} | Modo: {tipo_ejecucion} | {hora_actual}</p>
+          <h2 style="color: #1e293b; text-align: center;">📊 Reporte Final de Automatización HTA</h2>
+          <p style="text-align: center; color: #64748b; font-size: 13px;">{detalle_ejecucion} | Modo: {tipo_ejecucion} | {hora_actual}</p>
           <hr style="border: 0; border-top: 1px solid #e0e0e0; margin-bottom: 20px;">
 
-          <h3 style="color: #16a34a; font-size: 14px; margin-bottom: 8px;">✅ Usuarios con Login Real Correcto ({len(exitosos)})</h3>
+          <h3 style="color: #16a34a; font-size: 14px; margin-bottom: 8px;">✅ Logins Verificados Correctamente ({len(exitosos)})</h3>
           <table style="width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 25px;">
             <thead>
               <tr style="background-color: #f0fdf4; text-align: left;">
@@ -107,7 +107,7 @@ def enviar_reporte_final(grupo, tipo_ejecucion, exitosos, fallidos):
             <tbody>{filas_exitosos}</tbody>
           </table>
 
-          <h3 style="color: #dc2626; font-size: 14px; margin-bottom: 8px;">⚠️ Usuarios con Errores o Clave Incorrecta ({len(fallidos)})</h3>
+          <h3 style="color: #dc2626; font-size: 14px; margin-bottom: 8px;">⚠️ Errores de Login o Contraseña Incorrecta ({len(fallidos)})</h3>
           <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
             <thead>
               <tr style="background-color: #fee2e2; text-align: left;">
@@ -140,10 +140,11 @@ if not firebase_admin._apps:
 db = firestore.client()
 
 # ---------------------------------------------------------
-# 2. DETERMINAR EL GRUPO A EJECUTAR
+# 2. DETERMINAR SI ES REINTENTO INDIVIDUAL O GRUPO COMPLETO
 # ---------------------------------------------------------
-grupo_a_ejecutar = None
+grupo_a_ejecutar = "1"
 tipo_ejecucion = "Automática (Programada 08:00 AM)"
+usuario_individual = None
 
 if len(sys.argv) > 1:
     grupo_a_ejecutar = str(sys.argv[1]).strip()
@@ -155,15 +156,16 @@ manual_doc = manual_doc_ref.get()
 if manual_doc.exists:
     datos_manuales = manual_doc.to_dict()
     if datos_manuales.get("solicitado") is True:
+        usuario_individual = datos_manuales.get("usuario_individual")
         grupo_a_ejecutar = str(datos_manuales.get("grupo", "1")).strip()
         tipo_ejecucion = "Manual (App Web)"
-        manual_doc_ref.update({"solicitado": False})
+        # Se resetea el flag en Firebase
+        manual_doc_ref.update({"solicitado": False, "usuario_individual": None})
 
-if not grupo_a_ejecutar:
-    grupo_a_ejecutar = "1"
+detalle_ejecucion = f"Reintento Individual ({usuario_individual})" if usuario_individual else f"Grupo {grupo_a_ejecutar}"
 
-print(f"🚀 Iniciando automatización REAL para GRUPO {grupo_a_ejecutar} [{tipo_ejecucion}]")
-enviar_correo_inicio(grupo_a_ejecutar, tipo_ejecucion)
+print(f"🚀 Iniciando automatización REAL: {detalle_ejecucion} [{tipo_ejecucion}]")
+enviar_correo_inicio(detalle_ejecucion, tipo_ejecucion)
 
 # ---------------------------------------------------------
 # 3. ACTUALIZAR ESTADO INICIAL EN MONITOREO
@@ -180,17 +182,34 @@ db.collection("monitoreo").document("estado").set({
 # 4. OBTENER LECTURA DE TÉCNICOS DESDE FIREBASE
 # ---------------------------------------------------------
 tecnicos_ref = db.collection("tecnicos")
-query = tecnicos_ref.where(filter=FieldFilter("grupo", "==", str(grupo_a_ejecutar))).where(filter=FieldFilter("activo", "==", True))
-docs = query.stream()
-
 lista_tecnicos = []
-for doc in docs:
-    d = doc.to_dict()
-    d["_doc_id"] = doc.id
-    lista_tecnicos.append(d)
+
+if usuario_individual:
+    # 🎯 PROCESA ÚNICAMENTE AL TÉCNICO SOLICITADO EN REINTENTO INDIVIDUAL
+    doc_single = tecnicos_ref.document(usuario_individual).get()
+    if doc_single.exists:
+        d = doc_single.to_dict()
+        d["_doc_id"] = doc_single.id
+        lista_tecnicos.append(d)
+    else:
+        # Intenta buscar por el campo usuario
+        q_single = tecnicos_ref.where(filter=FieldFilter("usuario", "==", usuario_individual)).limit(1).stream()
+        for doc in q_single:
+            d = doc.to_dict()
+            d["_doc_id"] = doc.id
+            lista_tecnicos.append(d)
+    print(f"🎯 Reintento individual enfocado exclusivamente en: {usuario_individual}")
+else:
+    # 📋 PROCESA A TODOS LOS TÉCNICOS ACTIVOS DEL GRUPO SELECCIONADO
+    query = tecnicos_ref.where(filter=FieldFilter("grupo", "==", str(grupo_a_ejecutar))).where(filter=FieldFilter("activo", "==", True))
+    docs = query.stream()
+    for doc in docs:
+        d = doc.to_dict()
+        d["_doc_id"] = doc.id
+        lista_tecnicos.append(d)
 
 total_tecnicos = len(lista_tecnicos)
-print(f"📋 Se encontraron {total_tecnicos} técnicos activos en el Grupo {grupo_a_ejecutar}.")
+print(f"📋 Se encontraron {total_tecnicos} técnico(s) para procesar.")
 
 if total_tecnicos == 0:
     db.collection("monitoreo").document("estado").set({
@@ -214,7 +233,7 @@ with sync_playwright() as p:
 
     for idx, tec in enumerate(lista_tecnicos, start=1):
         doc_id = tec.get("_doc_id")
-        email = tec.get("usuario", "desconocido")
+        email = tec.get("usuario", doc_id)
         clave = tec.get("password", "Automotor*2026")
 
         print(f"[{idx}/{total_tecnicos}] Ejecutando autenticación real para: {email}")
@@ -306,7 +325,7 @@ with sync_playwright() as p:
     browser.close()
 
 # ---------------------------------------------------------
-# 6. FINALIZACIÓN Y REPORTE
+# 6. FINALIZACIÓN Y ENVÍO DE REPORTE
 # ---------------------------------------------------------
 db.collection("monitoreo").document("estado").set({
     "en_proceso": False,
@@ -316,5 +335,5 @@ db.collection("monitoreo").document("estado").set({
 }, merge=True)
 
 print("🎉 Proceso finalizado. Enviando reporte detallado...")
-enviar_reporte_final(grupo_a_ejecutar, tipo_ejecucion, usuarios_exitosos, usuarios_fallidos)
+enviar_reporte_final(detalle_ejecucion, tipo_ejecucion, usuarios_exitosos, usuarios_fallidos)
 print("🏁 Completado con éxito.")
