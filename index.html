@@ -130,7 +130,7 @@
         </div>
     </div>
 
-    <!-- Modal Agregar -->
+    <!-- Modal Agregar Nuevo Técnico -->
     <div id="userModal" class="fixed inset-0 bg-slate-950/80 hidden items-center justify-center p-4 z-50 backdrop-blur-md">
         <div class="glass-card p-6 rounded-2xl w-full max-w-sm space-y-4 border border-slate-700/80">
             <h3 class="text-base font-bold text-white">Agregar Nuevo Técnico</h3>
@@ -139,7 +139,7 @@
                 <input type="email" id="modalEmail" placeholder="tecnico@hyundai.com" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-xs text-white mt-1">
             </div>
             <div>
-                <label class="text-[11px] font-semibold text-slate-400 uppercase">Contraseña</label>
+                <label class="text-[11px] font-semibold text-slate-400 uppercase">Contraseña HTA</label>
                 <input type="text" id="modalPass" value="Automotor*2026" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-xs text-white mt-1">
             </div>
             <div>
@@ -155,6 +155,34 @@
             <div class="flex justify-end space-x-2 pt-2">
                 <button onclick="toggleModal()" class="px-4 py-2 text-xs text-slate-400 font-semibold">Cancelar</button>
                 <button onclick="guardarUsuario()" class="bg-blue-600 px-4 py-2 rounded-xl text-xs font-bold text-white">Guardar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Editar Contraseña / Grupo -->
+    <div id="editModal" class="fixed inset-0 bg-slate-950/80 hidden items-center justify-center p-4 z-50 backdrop-blur-md">
+        <div class="glass-card p-6 rounded-2xl w-full max-w-sm space-y-4 border border-slate-700/80">
+            <h3 class="text-base font-bold text-white">Editar Datos del Técnico</h3>
+            <p id="editUserEmail" class="text-xs font-mono text-blue-400 border-b border-slate-700 pb-2">---</p>
+            <input type="hidden" id="editDocId">
+            
+            <div>
+                <label class="text-[11px] font-semibold text-slate-400 uppercase">Nueva Contraseña HTA</label>
+                <input type="text" id="editPass" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-xs text-white mt-1">
+            </div>
+            <div>
+                <label class="text-[11px] font-semibold text-slate-400 uppercase">Grupo por Día</label>
+                <select id="editGrupo" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-xs text-white mt-1">
+                    <option value="1">Grupo 1 (Lunes)</option>
+                    <option value="2">Grupo 2 (Martes)</option>
+                    <option value="3">Grupo 3 (Miércoles)</option>
+                    <option value="4">Grupo 4 (Jueves)</option>
+                    <option value="5">Grupo 5 (Viernes)</option>
+                </select>
+            </div>
+            <div class="flex justify-end space-x-2 pt-2">
+                <button onclick="toggleEditModal()" class="px-4 py-2 text-xs text-slate-400 font-semibold">Cancelar</button>
+                <button onclick="actualizarUsuario()" class="bg-emerald-600 px-4 py-2 rounded-xl text-xs font-bold text-white">Actualizar en Firebase</button>
             </div>
         </div>
     </div>
@@ -417,6 +445,9 @@
                     <div class="flex justify-between items-start">
                         ${tituloUsuario}
                         <div class="flex items-center space-x-1.5">
+                            <button onclick="abrirEditarModal('${u.id}', '${u.password || ''}', '${u.grupo || 1}')" class="bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2 py-1 text-[11px] rounded-lg font-semibold hover:bg-amber-500/30">
+                                ✏️ Editar
+                            </button>
                             <button onclick="toggleActivo('${u.id}', ${u.activo})" class="px-2.5 py-1 text-[11px] rounded-lg font-semibold ${u.activo ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30' : 'bg-rose-500/10 text-rose-400 border border-rose-500/30'}">
                                 ${u.activo ? 'Activo' : 'Inactivo'}
                             </button>
@@ -426,7 +457,7 @@
                     
                     <div class="flex justify-between items-center pt-2 border-t border-slate-700/50 text-[11px]">
                         <div class="space-y-0.5">
-                            <p class="text-[10px] text-slate-400">Clave: <span class="font-mono text-amber-300 font-semibold">${u.password || '---'}</span> | Grupo: ${u.grupo || 1}</p>
+                            <p class="text-[10px] text-slate-400">Clave HTA: <span class="font-mono text-amber-300 font-semibold">${u.password || '---'}</span> | Grupo: ${u.grupo || 1}</p>
                             <div class="flex items-center gap-1.5 pt-0.5">
                                 <span class="text-slate-400">Accesos:</span>
                                 <span class="px-2 py-0.5 rounded-md font-bold ${accesos > 0 ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30' : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'}">
@@ -465,6 +496,42 @@
             const modal = document.getElementById("userModal");
             modal.classList.toggle("hidden");
             modal.classList.toggle("flex");
+        }
+
+        function toggleEditModal() {
+            const modal = document.getElementById("editModal");
+            modal.classList.toggle("hidden");
+            modal.classList.toggle("flex");
+        }
+
+        function abrirEditarModal(docId, passActual, grupoActual) {
+            document.getElementById("editDocId").value = docId;
+            document.getElementById("editUserEmail").innerText = docId;
+            document.getElementById("editPass").value = passActual || "Automotor*2026";
+            document.getElementById("editGrupo").value = grupoActual || "1";
+            toggleEditModal();
+        }
+
+        function actualizarUsuario() {
+            const docId = document.getElementById("editDocId").value.trim();
+            const nuevaPass = document.getElementById("editPass").value.trim();
+            const nuevoGrupo = document.getElementById("editGrupo").value;
+
+            if (docId && nuevaPass) {
+                // Guarda de manera forzada y atómica en Firebase usando set + merge
+                db.collection("tecnicos").doc(docId).set({
+                    password: nuevaPass,
+                    grupo: nuevoGrupo,
+                    usuario: docId
+                }, { merge: true }).then(() => {
+                    alert("✅ Contraseña actualizada correctamente en Firebase para " + docId);
+                    toggleEditModal();
+                }).catch(err => {
+                    alert("❌ Error al guardar en Firebase: " + err.message);
+                });
+            } else {
+                alert("La contraseña no puede estar vacía.");
+            }
         }
 
         function guardarUsuario() {
