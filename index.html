@@ -83,20 +83,20 @@
             </a>
         </div>
 
-        <!-- Estado en Vivo Mejorado con Barra de Porcentaje -->
+        <!-- Estado en Vivo con ETA y Porcentaje -->
         <div class="glass-card p-4 rounded-2xl shadow-2xl space-y-3">
             <div class="flex justify-between items-center border-b border-slate-700/50 pb-2">
                 <h2 class="text-xs font-bold text-slate-300 uppercase">Estado del Servidor en Vivo</h2>
                 <span id="porcentaje-texto" class="text-xs font-extrabold text-blue-400">0%</span>
             </div>
 
-            <!-- Información del Proceso / Tarea -->
             <div class="bg-slate-900/60 p-2.5 rounded-xl border border-slate-800/80 space-y-1">
                 <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Tarea en Ejecución:</p>
-                <p id="tarea-actual" class="text-xs font-semibold text-emerald-400">Esperando orden de inicio...</p>
+                <p id="tarea-actual" class="text-xs font-semibold text-emerald-400">Esperando orden...</p>
+                <p id="eta-texto" class="text-[10px] text-amber-300 font-mono pt-0.5">⏳ Tiempo estimado: ---</p>
             </div>
 
-            <!-- Barra de Avance Dinámica -->
+            <!-- Barra de Avance -->
             <div class="w-full bg-slate-900 rounded-full h-3.5 p-0.5 border border-slate-700/80 overflow-hidden">
                 <div id="barra-avance" class="bg-gradient-to-r from-blue-600 to-emerald-400 h-2.5 rounded-full transition-all duration-500 ease-out" style="width: 0%"></div>
             </div>
@@ -108,9 +108,24 @@
                 </div>
                 <div class="bg-slate-800/50 p-2 rounded-xl border border-slate-700/50 col-span-2">
                     <p class="text-[9px] text-slate-400 font-semibold uppercase">Usuario Actual</p>
-                    <!-- Visualización completa del correo sin recortar -->
                     <p id="usuario-actual" class="text-[11px] font-mono font-bold text-blue-300 mt-0.5 break-all">---</p>
                 </div>
+            </div>
+        </div>
+
+        <!-- Métricas Rápidas -->
+        <div class="grid grid-cols-3 gap-2">
+            <div class="glass-card p-2.5 rounded-xl text-center border border-slate-800">
+                <p class="text-[9px] text-slate-400 font-bold uppercase">Total Registrados</p>
+                <p id="stat-total" class="text-sm font-extrabold text-white mt-0.5">0</p>
+            </div>
+            <div class="glass-card p-2.5 rounded-xl text-center border border-slate-800">
+                <p class="text-[9px] text-slate-400 font-bold uppercase">Activos Hoy</p>
+                <p id="stat-activos" class="text-sm font-extrabold text-emerald-400 mt-0.5">0</p>
+            </div>
+            <div class="glass-card p-2.5 rounded-xl text-center border border-slate-800">
+                <p class="text-[9px] text-slate-400 font-bold uppercase">Logins Mes</p>
+                <p id="stat-logins" class="text-sm font-extrabold text-blue-400 mt-0.5">0</p>
             </div>
         </div>
 
@@ -128,14 +143,12 @@
                 <input type="text" id="searchInput" onkeyup="filtrarUsuarios()" placeholder="🔍 Buscar nombre, correo o taller..." 
                        class="w-full bg-slate-900/80 border border-slate-700/80 rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-blue-500">
                 
-                <!-- Filtros por Estado -->
                 <div class="flex space-x-2 text-xs">
                     <button onclick="setFiltro('todos')" id="btn-filtro-todos" class="px-3 py-1.5 rounded-xl bg-blue-600 font-bold text-white">Todos</button>
                     <button onclick="setFiltro('activos')" id="btn-filtro-activos" class="px-3 py-1.5 rounded-xl bg-slate-800 text-slate-400 border border-slate-700">Activos</button>
                     <button onclick="setFiltro('inactivos')" id="btn-filtro-inactivos" class="px-3 py-1.5 rounded-xl bg-slate-800 text-slate-400 border border-slate-700">Inactivos</button>
                 </div>
 
-                <!-- Filtro por Grupos (Lunes a Viernes) -->
                 <div class="flex gap-1 overflow-x-auto pb-1 text-[10px]">
                     <button onclick="setFiltroGrupo('todos')" id="btn-grp-todos" class="px-2.5 py-1 rounded-lg bg-blue-600/30 text-blue-300 border border-blue-500/30 font-bold shrink-0">Todos Grps</button>
                     <button onclick="setFiltroGrupo('1')" id="btn-grp-1" class="px-2 py-1 rounded-lg bg-slate-800 text-slate-400 border border-slate-700 font-semibold shrink-0">G1 (Lun)</button>
@@ -146,7 +159,6 @@
                 </div>
             </div>
 
-            <!-- Lista de Usuarios -->
             <div id="users-list" class="space-y-3 max-h-[28rem] overflow-y-auto pr-1">
                 <p class="text-xs text-slate-500 text-center py-6">Cargando técnicos...</p>
             </div>
@@ -412,7 +424,6 @@
                     badge.innerText = "⚪ INACTIVO";
                 }
 
-                // Actualización de Tarea, Usuario y Porcentaje con animación en la barra
                 document.getElementById("tarea-actual").innerText = data.tarea || "Esperando orden...";
                 document.getElementById("usuario-actual").innerText = data.usuario_actual || "---";
                 document.getElementById("progreso-texto").innerText = data.progreso || "0/0";
@@ -420,16 +431,37 @@
                 const pct = Number(data.porcentaje) || 0;
                 document.getElementById("porcentaje-texto").innerText = pct + "%";
                 document.getElementById("barra-avance").style.width = pct + "%";
+
+                // Cálculo de ETA en minutos y segundos
+                const etaSegs = Number(data.eta_segundos) || 0;
+                if (data.en_proceso && etaSegs > 0) {
+                    const mins = Math.floor(etaSegs / 60);
+                    const segs = etaSegs % 60;
+                    document.getElementById("eta-texto").innerText = `⏳ Tiempo estimado: ${mins}m ${segs}s`;
+                } else {
+                    document.getElementById("eta-texto").innerText = `⏳ Tiempo estimado: ---`;
+                }
             }
         });
 
         function cargarUsuarios() {
             db.collection("tecnicos").onSnapshot(snapshot => {
                 todosUsuarios = [];
+                let totalActivos = 0;
+                let totalLoginsMes = 0;
+
                 snapshot.forEach(doc => {
                     const data = doc.data();
                     todosUsuarios.push({ id: doc.id, usuario: data.usuario || doc.id, ...data });
+                    if (data.activo) totalActivos++;
+                    totalLoginsMes += Number(data.accesos_mes) || 0;
                 });
+
+                // Actualizar métricas ejecutivas
+                document.getElementById("stat-total").innerText = todosUsuarios.length;
+                document.getElementById("stat-activos").innerText = totalActivos;
+                document.getElementById("stat-logins").innerText = totalLoginsMes;
+
                 filtrarUsuarios();
             });
         }
