@@ -74,7 +74,7 @@
         <!-- Botón Ejecución Manual -->
         <div class="glass-card p-4 rounded-2xl shadow-2xl space-y-3">
             <div class="flex justify-between items-center">
-                <span class="text-[10px] font-extrabold uppercase tracking-widest text-blue-400">Ejecución Manual por Grupo</span>
+                <span class="text-[10px] font-extrabold uppercase tracking-widest text-blue-400">Ejecución Manual en GitHub</span>
             </div>
             <a href="https://github.com/revisioncuentahta-boop/Automation-Hyundai/actions/workflows/diario.yml" 
                target="_blank" 
@@ -398,7 +398,6 @@
                 todosUsuarios = [];
                 snapshot.forEach(doc => {
                     const data = doc.data();
-                    // Nos aseguramos de mantener siempre el correo en usuario
                     todosUsuarios.push({ id: doc.id, usuario: data.usuario || doc.id, ...data });
                 });
                 filtrarUsuarios();
@@ -447,6 +446,9 @@
                     <div class="flex justify-between items-start">
                         ${tituloUsuario}
                         <div class="flex items-center space-x-1.5">
+                            <button onclick="reintentarUsuarioIndividual('${u.usuario || u.id}', '${u.grupo || 1}')" class="bg-blue-500/20 text-blue-300 border border-blue-500/30 px-2 py-1 text-[11px] rounded-lg font-semibold hover:bg-blue-500/30">
+                                🔄 Reintentar
+                            </button>
                             <button onclick="abrirEditarModal('${u.id}', '${u.password || ''}', '${u.grupo || 1}', '${u.usuario || u.id}')" class="bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2 py-1 text-[11px] rounded-lg font-semibold hover:bg-amber-500/30">
                                 ✏️ Editar
                             </button>
@@ -475,6 +477,22 @@
                 `;
                 container.appendChild(card);
             });
+        }
+
+        function reintentarUsuarioIndividual(emailTecnico, grupoTecnico) {
+            if (confirm(`¿Deseas solicitar el reintento de inicio de sesión REAL solo para ${emailTecnico}?`)) {
+                db.collection("config").doc("ejecucion_manual").set({
+                    solicitado: true,
+                    grupo: grupoTecnico || "1",
+                    usuario_individual: emailTecnico,
+                    fecha_solicitud: firebase.firestore.FieldValue.serverTimestamp()
+                }, { merge: true }).then(() => {
+                    alert(`✅ Solicitud enviada para ${emailTecnico}.\n\nSe abrirá la consola de GitHub Actions. Presiona 'Run workflow' para probar este acceso individual.`);
+                    window.open("https://github.com/revisioncuentahta-boop/Automation-Hyundai/actions/workflows/diario.yml", "_blank");
+                }).catch(err => {
+                    alert("❌ Error al solicitar reintento: " + err.message);
+                });
+            }
         }
 
         function filtrarUsuarios() {
@@ -521,7 +539,6 @@
             const correoOriginal = document.getElementById("editUserEmail").innerText.trim();
 
             if (docId && nuevaPass) {
-                // Forzar el guardado de 'usuario' para que nunca se pierda el mapeo con el Excel
                 db.collection("tecnicos").doc(docId).set({
                     usuario: correoOriginal !== '---' ? correoOriginal : docId,
                     password: nuevaPass,
