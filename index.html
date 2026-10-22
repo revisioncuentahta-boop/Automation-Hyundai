@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hyundai Monitor HTA - WRC</title>
+    <title>Hyundai HTA - Portal de Automatización</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
@@ -15,8 +15,18 @@
             darkMode: 'class',
             theme: {
                 extend: {
+                    colors: {
+                        hyundai: {
+                            navy: '#002C5F',
+                            blue: '#00AAD2',
+                            sky: '#0072CE',
+                            dark: '#0A111D',
+                            card: '#121E31',
+                            silver: '#A6B2C3'
+                        }
+                    },
                     fontFamily: {
-                        sans: ['Plus Jakarta Sans', 'sans-serif'],
+                        sans: ['Inter', 'sans-serif'],
                     }
                 }
             }
@@ -25,44 +35,57 @@
 
     <style>
         body {
-            background: radial-gradient(circle at top right, #1e293b, #0f172a, #020617);
+            background: radial-gradient(circle at top center, #002C5F 0%, #0A111D 60%, #05080E 100%);
             background-attachment: fixed;
         }
-        .glass-card {
-            background: rgba(30, 41, 59, 0.7);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.08);
+        .hyundai-card {
+            background: rgba(18, 30, 49, 0.75);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(0, 170, 210, 0.2);
+            box-shadow: 0 10px 30px -10px rgba(0, 44, 95, 0.5);
         }
-        .glass-btn {
-            background: linear-gradient(135deg, rgba(37, 99, 235, 0.9), rgba(29, 78, 216, 0.9));
-            box-shadow: 0 4px 15px rgba(37, 99, 235, 0.35);
+        .hyundai-card-glow {
+            border: 1px solid rgba(0, 170, 210, 0.4);
+            box-shadow: 0 0 20px rgba(0, 170, 210, 0.15);
+        }
+        .hyundai-btn-primary {
+            background: linear-gradient(135deg, #002C5F 0%, #0072CE 100%);
+            border: 1px solid rgba(0, 170, 210, 0.4);
+            box-shadow: 0 4px 15px rgba(0, 114, 206, 0.3);
+        }
+        .hyundai-btn-accent {
+            background: linear-gradient(135deg, #00AAD2 0%, #0072CE 100%);
+            box-shadow: 0 4px 15px rgba(0, 170, 210, 0.3);
         }
     </style>
 </head>
 <body class="text-slate-100 min-h-screen p-4 sm:p-6 font-sans antialiased">
     <div class="max-w-md mx-auto space-y-5">
         
-        <!-- Header -->
-        <div class="flex justify-between items-center pb-2 border-b border-slate-800">
-            <div>
-                <div class="flex items-center gap-2">
-                    <div class="w-3 h-3 rounded-full bg-blue-500 animate-pulse"></div>
-                    <h1 class="text-lg font-extrabold tracking-tight text-white uppercase">
-                        Hyundai Monitor
-                    </h1>
+        <!-- Header Corporativo Hyundai -->
+        <div class="flex justify-between items-center pb-3 border-b border-hyundai-blue/20">
+            <div class="flex items-center gap-3">
+                <!-- Logotipo / Emblema Hyundai Oval H -->
+                <div class="w-10 h-10 rounded-xl bg-hyundai-navy/80 border border-hyundai-blue/40 flex items-center justify-center shadow-lg shadow-hyundai-blue/10">
+                    <span class="text-xl font-black italic tracking-tighter text-white font-serif">H</span>
                 </div>
-                <p class="text-xs text-slate-400 font-medium">Panel de Control & Automatización HTA</p>
+                <div>
+                    <h1 class="text-base font-black tracking-wider text-white uppercase flex items-center gap-1.5">
+                        HYUNDAI <span class="text-hyundai-blue font-light">HTA</span>
+                    </h1>
+                    <p class="text-[10px] text-hyundai-silver font-medium tracking-wide">Automotor S.A. • Training Center</p>
+                </div>
             </div>
-            <span id="status-badge" class="px-3 py-1 rounded-full text-xs font-bold bg-slate-800 text-slate-400 border border-slate-700/80">
+            <span id="status-badge" class="px-3 py-1 rounded-full text-[10px] font-bold bg-slate-900/90 text-slate-400 border border-slate-700">
                 Cargando...
             </span>
         </div>
 
         <!-- Botón Maestro Pausa -->
-        <div id="pause-banner" class="glass-card p-3.5 rounded-2xl flex justify-between items-center shadow-2xl">
+        <div id="pause-banner" class="hyundai-card p-3.5 rounded-2xl flex justify-between items-center">
             <div>
-                <p class="text-[10px] text-slate-400 uppercase font-black tracking-wider">Estado del Sistema</p>
+                <p class="text-[9px] text-hyundai-silver uppercase font-extrabold tracking-widest">Estado del Robot</p>
                 <p id="pause-status-text" class="text-xs font-bold text-emerald-400 mt-0.5">🟢 Sistema Operativo</p>
             </div>
             <button id="btn-toggle-pause" onclick="togglePausarSistema()" 
@@ -72,114 +95,117 @@
         </div>
 
         <!-- Botón Ejecución Manual -->
-        <div class="glass-card p-3.5 rounded-2xl shadow-2xl space-y-2.5">
+        <div class="hyundai-card p-3.5 rounded-2xl space-y-2.5">
             <div class="flex justify-between items-center">
-                <span class="text-[10px] font-extrabold uppercase tracking-widest text-blue-400">Ejecución Manual en GitHub</span>
+                <span class="text-[10px] font-extrabold uppercase tracking-widest text-hyundai-blue">Consola de Control Cloud</span>
             </div>
             <a href="https://github.com/revisioncuentahta-boop/Automation-Hyundai/actions/workflows/diario.yml" 
                target="_blank" 
-               class="glass-btn w-full py-2.5 px-4 rounded-xl font-bold text-xs text-white text-center flex items-center justify-center gap-2 cursor-pointer">
-                <span>Abrir Consola de Ejecución Manual</span>
+               class="hyundai-btn-primary w-full py-2.5 px-4 rounded-xl font-bold text-xs text-white text-center flex items-center justify-center gap-2 cursor-pointer">
+                <span>Ejecutar Flujo en GitHub Actions</span>
             </a>
         </div>
 
-        <!-- Estado en Vivo con ETA y Porcentaje -->
-        <div class="glass-card p-4 rounded-2xl shadow-2xl space-y-3">
-            <div class="flex justify-between items-center border-b border-slate-700/50 pb-2">
-                <h2 class="text-xs font-bold text-slate-300 uppercase">Estado del Servidor en Vivo</h2>
-                <span id="porcentaje-texto" class="text-xs font-extrabold text-blue-400">0%</span>
+        <!-- Estado en Vivo con Estilo Corporativo Hyundai -->
+        <div class="hyundai-card hyundai-card-glow p-4 rounded-2xl space-y-3">
+            <div class="flex justify-between items-center border-b border-hyundai-blue/20 pb-2">
+                <div class="flex items-center gap-1.5">
+                    <div class="w-2 h-2 rounded-full bg-hyundai-blue animate-ping"></div>
+                    <h2 class="text-xs font-black text-white uppercase tracking-wider">Telemetría en Vivo</h2>
+                </div>
+                <span id="porcentaje-texto" class="text-xs font-black text-hyundai-blue">0%</span>
             </div>
 
-            <div class="bg-slate-900/60 p-2.5 rounded-xl border border-slate-800/80 space-y-1">
-                <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Tarea en Ejecución:</p>
-                <p id="tarea-actual" class="text-xs font-semibold text-emerald-400">Esperando orden...</p>
+            <div class="bg-slate-950/60 p-2.5 rounded-xl border border-hyundai-blue/20 space-y-1">
+                <p class="text-[9px] font-extrabold uppercase tracking-widest text-hyundai-silver">Tarea en Curso:</p>
+                <p id="tarea-actual" class="text-xs font-bold text-emerald-400">Esperando orden...</p>
                 <p id="eta-texto" class="text-[10px] text-amber-300 font-mono pt-0.5">⏳ Tiempo estimado: ---</p>
             </div>
 
-            <!-- Barra de Avance -->
-            <div class="w-full bg-slate-900 rounded-full h-3.5 p-0.5 border border-slate-700/80 overflow-hidden">
-                <div id="barra-avance" class="bg-gradient-to-r from-blue-600 to-emerald-400 h-2.5 rounded-full transition-all duration-500 ease-out" style="width: 0%"></div>
+            <!-- Barra de Avance Estilo Hyundai Glow -->
+            <div class="w-full bg-slate-950 rounded-full h-3 p-0.5 border border-hyundai-blue/30 overflow-hidden">
+                <div id="barra-avance" class="bg-gradient-to-r from-hyundai-navy via-hyundai-sky to-hyundai-blue h-2 rounded-full transition-all duration-500 ease-out" style="width: 0%"></div>
             </div>
 
             <div class="grid grid-cols-3 gap-2 text-center pt-1">
-                <div class="bg-slate-800/50 p-2 rounded-xl border border-slate-700/50 col-span-1">
-                    <p class="text-[9px] text-slate-400 font-semibold uppercase">Progreso</p>
-                    <p id="progreso-texto" class="text-xs font-bold text-white mt-0.5">0/0</p>
+                <div class="bg-hyundai-dark/80 p-2 rounded-xl border border-hyundai-blue/20 col-span-1">
+                    <p class="text-[9px] text-hyundai-silver font-bold uppercase">Progreso</p>
+                    <p id="progreso-texto" class="text-xs font-extrabold text-white mt-0.5">0/0</p>
                 </div>
-                <div class="bg-slate-800/50 p-2 rounded-xl border border-slate-700/50 col-span-2">
-                    <p class="text-[9px] text-slate-400 font-semibold uppercase">Usuario Actual</p>
-                    <p id="usuario-actual" class="text-[11px] font-mono font-bold text-blue-300 mt-0.5 break-all">---</p>
+                <div class="bg-hyundai-dark/80 p-2 rounded-xl border border-hyundai-blue/20 col-span-2">
+                    <p class="text-[9px] text-hyundai-silver font-bold uppercase">Usuario Procesado</p>
+                    <p id="usuario-actual" class="text-[11px] font-mono font-bold text-hyundai-blue mt-0.5 break-all">---</p>
                 </div>
             </div>
         </div>
 
         <!-- Métricas Rápidas -->
         <div class="grid grid-cols-3 gap-2">
-            <div class="glass-card p-2.5 rounded-xl text-center border border-slate-800">
-                <p class="text-[9px] text-slate-400 font-bold uppercase">Total Registrados</p>
-                <p id="stat-total" class="text-sm font-extrabold text-white mt-0.5">0</p>
+            <div class="hyundai-card p-2.5 rounded-xl text-center">
+                <p class="text-[9px] text-hyundai-silver font-bold uppercase">Registrados</p>
+                <p id="stat-total" class="text-sm font-black text-white mt-0.5">0</p>
             </div>
-            <div class="glass-card p-2.5 rounded-xl text-center border border-slate-800">
-                <p class="text-[9px] text-slate-400 font-bold uppercase">Activos Hoy</p>
-                <p id="stat-activos" class="text-sm font-extrabold text-emerald-400 mt-0.5">0</p>
+            <div class="hyundai-card p-2.5 rounded-xl text-center">
+                <p class="text-[9px] text-hyundai-silver font-bold uppercase">Activos Hoy</p>
+                <p id="stat-activos" class="text-sm font-black text-emerald-400 mt-0.5">0</p>
             </div>
-            <div class="glass-card p-2.5 rounded-xl text-center border border-slate-800">
-                <p class="text-[9px] text-slate-400 font-bold uppercase">Logins Mes</p>
-                <p id="stat-logins" class="text-sm font-extrabold text-blue-400 mt-0.5">0</p>
+            <div class="hyundai-card p-2.5 rounded-xl text-center">
+                <p class="text-[9px] text-hyundai-silver font-bold uppercase">Logins Mes</p>
+                <p id="stat-logins" class="text-sm font-black text-hyundai-blue mt-0.5">0</p>
             </div>
         </div>
 
-        <!-- Monitoreo -->
+        <!-- Monitoreo de Accesos -->
         <div class="space-y-3">
             <div class="flex justify-between items-center">
-                <h2 class="text-xs font-bold text-slate-300 uppercase tracking-wider">Monitoreo de Accesos</h2>
-                <button onclick="toggleModal()" class="bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded-xl text-xs font-bold shadow-lg transition">
+                <h2 class="text-xs font-extrabold text-white uppercase tracking-wider">Gestión de Técnicos</h2>
+                <button onclick="toggleModal()" class="hyundai-btn-accent text-white px-3 py-1.5 rounded-xl text-xs font-extrabold shadow-lg transition">
                     + Nuevo Técnico
                 </button>
             </div>
 
             <!-- Buscador y Filtros -->
             <div class="space-y-2">
-                <input type="text" id="searchInput" onkeyup="filtrarUsuarios()" placeholder="🔍 Buscar nombre, correo o taller..." 
-                       class="w-full bg-slate-900/80 border border-slate-700/80 rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-blue-500">
+                <input type="text" id="searchInput" onkeyup="filtrarUsuarios()" placeholder="🔍 Buscar por nombre, correo o taller..." 
+                       class="w-full bg-slate-950/80 border border-hyundai-blue/30 rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-hyundai-blue">
                 
                 <div class="flex space-x-2 text-xs">
-                    <button onclick="setFiltro('todos')" id="btn-filtro-todos" class="px-3 py-1.5 rounded-xl bg-blue-600 font-bold text-white">Todos</button>
-                    <button onclick="setFiltro('activos')" id="btn-filtro-activos" class="px-3 py-1.5 rounded-xl bg-slate-800 text-slate-400 border border-slate-700">Activos</button>
-                    <button onclick="setFiltro('inactivos')" id="btn-filtro-inactivos" class="px-3 py-1.5 rounded-xl bg-slate-800 text-slate-400 border border-slate-700">Inactivos</button>
+                    <button onclick="setFiltro('todos')" id="btn-filtro-todos" class="px-3 py-1.5 rounded-xl bg-hyundai-navy font-bold text-white border border-hyundai-blue/40">Todos</button>
+                    <button onclick="setFiltro('activos')" id="btn-filtro-activos" class="px-3 py-1.5 rounded-xl bg-slate-900 text-slate-400 border border-slate-800">Activos</button>
+                    <button onclick="setFiltro('inactivos')" id="btn-filtro-inactivos" class="px-3 py-1.5 rounded-xl bg-slate-900 text-slate-400 border border-slate-800">Inactivos</button>
                 </div>
 
                 <div class="flex gap-1 overflow-x-auto pb-1 text-[10px]">
-                    <button onclick="setFiltroGrupo('todos')" id="btn-grp-todos" class="px-2.5 py-1 rounded-lg bg-blue-600/30 text-blue-300 border border-blue-500/30 font-bold shrink-0">Todos Grps</button>
-                    <button onclick="setFiltroGrupo('1')" id="btn-grp-1" class="px-2 py-1 rounded-lg bg-slate-800 text-slate-400 border border-slate-700 font-semibold shrink-0">G1 (Lun)</button>
-                    <button onclick="setFiltroGrupo('2')" id="btn-grp-2" class="px-2 py-1 rounded-lg bg-slate-800 text-slate-400 border border-slate-700 font-semibold shrink-0">G2 (Mar)</button>
-                    <button onclick="setFiltroGrupo('3')" id="btn-grp-3" class="px-2 py-1 rounded-lg bg-slate-800 text-slate-400 border border-slate-700 font-semibold shrink-0">G3 (Mié)</button>
-                    <button onclick="setFiltroGrupo('4')" id="btn-grp-4" class="px-2 py-1 rounded-lg bg-slate-800 text-slate-400 border border-slate-700 font-semibold shrink-0">G4 (Jue)</button>
-                    <button onclick="setFiltroGrupo('5')" id="btn-grp-5" class="px-2 py-1 rounded-lg bg-slate-800 text-slate-400 border border-slate-700 font-semibold shrink-0">G5 (Vie)</button>
+                    <button onclick="setFiltroGrupo('todos')" id="btn-grp-todos" class="px-2.5 py-1 rounded-lg bg-hyundai-blue/20 text-hyundai-blue border border-hyundai-blue/40 font-bold shrink-0">Todos Grps</button>
+                    <button onclick="setFiltroGrupo('1')" id="btn-grp-1" class="px-2 py-1 rounded-lg bg-slate-900 text-slate-400 border border-slate-800 font-semibold shrink-0">G1 (Lun)</button>
+                    <button onclick="setFiltroGrupo('2')" id="btn-grp-2" class="px-2 py-1 rounded-lg bg-slate-900 text-slate-400 border border-slate-800 font-semibold shrink-0">G2 (Mar)</button>
+                    <button onclick="setFiltroGrupo('3')" id="btn-grp-3" class="px-2 py-1 rounded-lg bg-slate-900 text-slate-400 border border-slate-800 font-semibold shrink-0">G3 (Mié)</button>
+                    <button onclick="setFiltroGrupo('4')" id="btn-grp-4" class="px-2 py-1 rounded-lg bg-slate-900 text-slate-400 border border-slate-800 font-semibold shrink-0">G4 (Jue)</button>
+                    <button onclick="setFiltroGrupo('5')" id="btn-grp-5" class="px-2 py-1 rounded-lg bg-slate-900 text-slate-400 border border-slate-800 font-semibold shrink-0">G5 (Vie)</button>
                 </div>
             </div>
 
             <div id="users-list" class="space-y-3 max-h-[28rem] overflow-y-auto pr-1">
-                <p class="text-xs text-slate-500 text-center py-6">Cargando técnicos...</p>
+                <p class="text-xs text-slate-500 text-center py-6">Cargando nómina...</p>
             </div>
         </div>
     </div>
 
     <!-- Modal Agregar Nuevo Técnico -->
-    <div id="userModal" class="fixed inset-0 bg-slate-950/80 hidden items-center justify-center p-4 z-50 backdrop-blur-md">
-        <div class="glass-card p-5 rounded-2xl w-full max-w-sm space-y-4 border border-slate-700/80">
-            <h3 class="text-sm font-bold text-white uppercase">Agregar Nuevo Técnico</h3>
+    <div id="userModal" class="fixed inset-0 bg-slate-950/85 hidden items-center justify-center p-4 z-50 backdrop-blur-md">
+        <div class="hyundai-card p-5 rounded-2xl w-full max-w-sm space-y-4 border border-hyundai-blue/40">
+            <h3 class="text-sm font-extrabold text-white uppercase tracking-wider">Agregar Nuevo Técnico</h3>
             <div>
-                <label class="text-[10px] font-semibold text-slate-400 uppercase">Correo Electrónico</label>
-                <input type="email" id="modalEmail" placeholder="tecnico@hyundai.com" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-xs text-white mt-1">
+                <label class="text-[10px] font-semibold text-hyundai-silver uppercase">Correo Electrónico</label>
+                <input type="email" id="modalEmail" placeholder="tecnico@hyundai.com" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white mt-1">
             </div>
             <div>
-                <label class="text-[10px] font-semibold text-slate-400 uppercase">Contraseña HTA</label>
-                <input type="text" id="modalPass" value="Automotor*2026" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-xs text-white mt-1">
+                <label class="text-[10px] font-semibold text-hyundai-silver uppercase">Contraseña HTA</label>
+                <input type="text" id="modalPass" value="Automotor*2026" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white mt-1">
             </div>
             <div>
-                <label class="text-[10px] font-semibold text-slate-400 uppercase">Grupo por Día</label>
-                <select id="modalGrupo" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-xs text-white mt-1">
+                <label class="text-[10px] font-semibold text-hyundai-silver uppercase">Grupo por Día</label>
+                <select id="modalGrupo" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white mt-1">
                     <option value="1">Grupo 1 (Lunes)</option>
                     <option value="2">Grupo 2 (Martes)</option>
                     <option value="3">Grupo 3 (Miércoles)</option>
@@ -189,25 +215,25 @@
             </div>
             <div class="flex justify-end space-x-2 pt-2">
                 <button onclick="toggleModal()" class="px-4 py-2 text-xs text-slate-400 font-semibold">Cancelar</button>
-                <button onclick="guardarUsuario()" class="bg-blue-600 px-4 py-2 rounded-xl text-xs font-bold text-white">Guardar</button>
+                <button onclick="guardarUsuario()" class="hyundai-btn-accent px-4 py-2 rounded-xl text-xs font-bold text-white">Guardar</button>
             </div>
         </div>
     </div>
 
     <!-- Modal Editar Contraseña / Grupo -->
-    <div id="editModal" class="fixed inset-0 bg-slate-950/80 hidden items-center justify-center p-4 z-50 backdrop-blur-md">
-        <div class="glass-card p-5 rounded-2xl w-full max-w-sm space-y-4 border border-slate-700/80">
-            <h3 class="text-sm font-bold text-white uppercase">Editar Datos del Técnico</h3>
-            <p id="editUserEmail" class="text-xs font-mono text-blue-400 border-b border-slate-700 pb-2 break-all">---</p>
+    <div id="editModal" class="fixed inset-0 bg-slate-950/85 hidden items-center justify-center p-4 z-50 backdrop-blur-md">
+        <div class="hyundai-card p-5 rounded-2xl w-full max-w-sm space-y-4 border border-hyundai-blue/40">
+            <h3 class="text-sm font-extrabold text-white uppercase tracking-wider">Editar Datos del Técnico</h3>
+            <p id="editUserEmail" class="text-xs font-mono text-hyundai-blue border-b border-slate-800 pb-2 break-all">---</p>
             <input type="hidden" id="editDocId">
             
             <div>
-                <label class="text-[10px] font-semibold text-slate-400 uppercase">Nueva Contraseña HTA</label>
-                <input type="text" id="editPass" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-xs text-white mt-1">
+                <label class="text-[10px] font-semibold text-hyundai-silver uppercase">Nueva Contraseña HTA</label>
+                <input type="text" id="editPass" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white mt-1">
             </div>
             <div>
-                <label class="text-[10px] font-semibold text-slate-400 uppercase">Grupo por Día</label>
-                <select id="editGrupo" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-xs text-white mt-1">
+                <label class="text-[10px] font-semibold text-hyundai-silver uppercase">Grupo por Día</label>
+                <select id="editGrupo" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white mt-1">
                     <option value="1">Grupo 1 (Lunes)</option>
                     <option value="2">Grupo 2 (Martes)</option>
                     <option value="3">Grupo 3 (Miércoles)</option>
@@ -417,10 +443,10 @@
                 const data = doc.data();
                 const badge = document.getElementById("status-badge");
                 if (data.en_proceso) {
-                    badge.className = "px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 animate-pulse";
+                    badge.className = "px-3 py-1 rounded-full text-xs font-bold bg-hyundai-blue/20 text-hyundai-blue border border-hyundai-blue/40 animate-pulse";
                     badge.innerText = "🟢 EN EJECUCIÓN";
                 } else {
-                    badge.className = "px-3 py-1 rounded-full text-xs font-bold bg-slate-800 text-slate-400 border border-slate-700/80";
+                    badge.className = "px-3 py-1 rounded-full text-xs font-bold bg-slate-900 text-slate-400 border border-slate-800";
                     badge.innerText = "⚪ INACTIVO";
                 }
 
@@ -432,7 +458,6 @@
                 document.getElementById("porcentaje-texto").innerText = pct + "%";
                 document.getElementById("barra-avance").style.width = pct + "%";
 
-                // Cálculo de ETA en minutos y segundos
                 const etaSegs = Number(data.eta_segundos) || 0;
                 if (data.en_proceso && etaSegs > 0) {
                     const mins = Math.floor(etaSegs / 60);
@@ -457,7 +482,6 @@
                     totalLoginsMes += Number(data.accesos_mes) || 0;
                 });
 
-                // Actualizar métricas ejecutivas
                 document.getElementById("stat-total").innerText = todosUsuarios.length;
                 document.getElementById("stat-activos").innerText = totalActivos;
                 document.getElementById("stat-logins").innerText = totalLoginsMes;
@@ -471,8 +495,8 @@
             ['todos', 'activos', 'inactivos'].forEach(f => {
                 const btn = document.getElementById(`btn-filtro-${f}`);
                 btn.className = (f === tipo) 
-                    ? "px-3 py-1.5 rounded-xl bg-blue-600 font-bold text-white shadow-md"
-                    : "px-3 py-1.5 rounded-xl bg-slate-800 text-slate-400 border border-slate-700";
+                    ? "px-3 py-1.5 rounded-xl bg-hyundai-navy font-bold text-white border border-hyundai-blue/40 shadow-md"
+                    : "px-3 py-1.5 rounded-xl bg-slate-900 text-slate-400 border border-slate-800";
             });
             filtrarUsuarios();
         }
@@ -483,8 +507,8 @@
                 const btn = document.getElementById(`btn-grp-${g}`);
                 if (btn) {
                     btn.className = (g === grp)
-                        ? "px-2.5 py-1 rounded-lg bg-blue-600/30 text-blue-300 border border-blue-500/30 font-bold shrink-0"
-                        : "px-2 py-1 rounded-lg bg-slate-800 text-slate-400 border border-slate-700 font-semibold shrink-0";
+                        ? "px-2.5 py-1 rounded-lg bg-hyundai-blue/20 text-hyundai-blue border border-hyundai-blue/40 font-bold shrink-0"
+                        : "px-2 py-1 rounded-lg bg-slate-900 text-slate-400 border border-slate-800 font-semibold shrink-0";
                 }
             });
             filtrarUsuarios();
@@ -507,7 +531,7 @@
             }
             lista.forEach(u => {
                 const card = document.createElement("div");
-                card.className = "glass-card p-3.5 rounded-2xl space-y-3 border border-slate-700/50 shadow-xl";
+                card.className = "hyundai-card p-3.5 rounded-2xl space-y-3 shadow-xl";
                 
                 const emailKey = (u.usuario || u.id || "").toLowerCase().trim();
                 const infoExtra = datosUsuariosExcel[emailKey];
@@ -516,9 +540,9 @@
                 if (infoExtra) {
                     tituloUsuario = `
                         <div class="space-y-0.5 max-w-[180px]">
-                            <p class="text-xs font-extrabold text-white truncate">${infoExtra.nombre}</p>
-                            <p class="text-[11px] font-semibold text-blue-400 truncate">📍 ${infoExtra.ubicacion}</p>
-                            <p class="text-[10px] text-slate-400 truncate">${u.usuario || u.id}</p>
+                            <p class="text-xs font-black text-white truncate">${infoExtra.nombre}</p>
+                            <p class="text-[11px] font-bold text-hyundai-blue truncate">📍 ${infoExtra.ubicacion}</p>
+                            <p class="text-[10px] text-hyundai-silver truncate">${u.usuario || u.id}</p>
                         </div>
                     `;
                 }
@@ -546,11 +570,11 @@
                         </div>
                     </div>
                     
-                    <div class="flex justify-between items-center pt-2 border-t border-slate-700/50 text-[11px]">
+                    <div class="flex justify-between items-center pt-2 border-t border-slate-800 text-[11px]">
                         <div class="space-y-0.5">
                             <div class="flex items-center gap-1">
-                                <span class="text-[10px] text-slate-400">Clave HTA:</span>
-                                <span class="font-mono text-amber-300 font-semibold text-[10px]">${u.password || '---'}</span>
+                                <span class="text-[10px] text-hyundai-silver">Clave HTA:</span>
+                                <span class="font-mono text-amber-300 font-bold text-[10px]">${u.password || '---'}</span>
                                 <button onclick="copiarTexto('${u.password || ''}')" class="text-[9px] text-amber-300/80 hover:text-amber-300 bg-amber-500/10 px-1 rounded border border-amber-500/20 transition">
                                     📋 Copiar
                                 </button>
@@ -558,10 +582,10 @@
                             </div>
                             
                             <div class="flex items-center gap-1.5 pt-0.5">
-                                <span class="px-2 py-0.5 rounded-md font-bold text-[10px] ${accesos > 0 ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30' : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'}">
+                                <span class="px-2 py-0.5 rounded-md font-bold text-[10px] ${accesos > 0 ? 'bg-hyundai-blue/20 text-hyundai-blue border border-hyundai-blue/30' : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'}">
                                     🔑 ${accesos} accesos
                                 </span>
-                                <span class="text-[9px] text-slate-400 font-mono">🕒 ${ultimoAccesoTexto}</span>
+                                <span class="text-[9px] text-hyundai-silver font-mono">🕒 ${ultimoAccesoTexto}</span>
                             </div>
                         </div>
                         <a href="mailto:${u.usuario || u.id}?subject=Aviso HTA&body=Estimado(a), le recordamos ingresar a la plataforma HTA." 
@@ -572,11 +596,11 @@
 
                     <div class="grid grid-cols-2 gap-2 pt-1 border-t border-slate-800">
                         <button onclick="reintentarUsuarioIndividual('${u.usuario || u.id}', '${u.grupo || 1}')" 
-                                class="w-full bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 border border-blue-500/30 py-1.5 rounded-xl font-bold text-[10px] text-center flex items-center justify-center gap-1 transition">
+                                class="w-full bg-hyundai-navy/80 hover:bg-hyundai-navy text-hyundai-blue border border-hyundai-blue/30 py-1.5 rounded-xl font-bold text-[10px] text-center flex items-center justify-center gap-1 transition">
                             <span>🔄 Reintentar</span>
                         </button>
                         <button onclick="abrirEditarModal('${u.id}', '${u.password || ''}', '${u.grupo || 1}', '${u.usuario || u.id}')" 
-                                class="w-full bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 py-1.5 rounded-xl font-bold text-[10px] text-center flex items-center justify-center gap-1 transition">
+                                class="w-full bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 py-1.5 rounded-xl font-bold text-[10px] text-center flex items-center justify-center gap-1 transition">
                             <span>✏️ Editar</span>
                         </button>
                     </div>
