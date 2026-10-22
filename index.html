@@ -397,7 +397,9 @@
             db.collection("tecnicos").onSnapshot(snapshot => {
                 todosUsuarios = [];
                 snapshot.forEach(doc => {
-                    todosUsuarios.push({ id: doc.id, ...doc.data() });
+                    const data = doc.data();
+                    // Nos aseguramos de mantener siempre el correo en usuario
+                    todosUsuarios.push({ id: doc.id, usuario: data.usuario || doc.id, ...data });
                 });
                 filtrarUsuarios();
             });
@@ -445,7 +447,7 @@
                     <div class="flex justify-between items-start">
                         ${tituloUsuario}
                         <div class="flex items-center space-x-1.5">
-                            <button onclick="abrirEditarModal('${u.id}', '${u.password || ''}', '${u.grupo || 1}')" class="bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2 py-1 text-[11px] rounded-lg font-semibold hover:bg-amber-500/30">
+                            <button onclick="abrirEditarModal('${u.id}', '${u.password || ''}', '${u.grupo || 1}', '${u.usuario || u.id}')" class="bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2 py-1 text-[11px] rounded-lg font-semibold hover:bg-amber-500/30">
                                 ✏️ Editar
                             </button>
                             <button onclick="toggleActivo('${u.id}', ${u.activo})" class="px-2.5 py-1 text-[11px] rounded-lg font-semibold ${u.activo ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30' : 'bg-rose-500/10 text-rose-400 border border-rose-500/30'}">
@@ -465,7 +467,7 @@
                                 </span>
                             </div>
                         </div>
-                        <a href="mailto:${u.usuario}?subject=Aviso HTA&body=Estimado(a), le recordamos ingresar a la plataforma HTA." 
+                        <a href="mailto:${u.usuario || u.id}?subject=Aviso HTA&body=Estimado(a), le recordamos ingresar a la plataforma HTA." 
                            class="text-amber-400 font-semibold underline text-[10px]">
                            Enviar aviso
                         </a>
@@ -504,9 +506,9 @@
             modal.classList.toggle("flex");
         }
 
-        function abrirEditarModal(docId, passActual, grupoActual) {
+        function abrirEditarModal(docId, passActual, grupoActual, correoActual) {
             document.getElementById("editDocId").value = docId;
-            document.getElementById("editUserEmail").innerText = docId;
+            document.getElementById("editUserEmail").innerText = correoActual || docId;
             document.getElementById("editPass").value = passActual || "Automotor*2026";
             document.getElementById("editGrupo").value = grupoActual || "1";
             toggleEditModal();
@@ -516,15 +518,16 @@
             const docId = document.getElementById("editDocId").value.trim();
             const nuevaPass = document.getElementById("editPass").value.trim();
             const nuevoGrupo = document.getElementById("editGrupo").value;
+            const correoOriginal = document.getElementById("editUserEmail").innerText.trim();
 
             if (docId && nuevaPass) {
-                // Guarda de manera forzada y atómica en Firebase usando set + merge
+                // Forzar el guardado de 'usuario' para que nunca se pierda el mapeo con el Excel
                 db.collection("tecnicos").doc(docId).set({
+                    usuario: correoOriginal !== '---' ? correoOriginal : docId,
                     password: nuevaPass,
-                    grupo: nuevoGrupo,
-                    usuario: docId
+                    grupo: nuevoGrupo
                 }, { merge: true }).then(() => {
-                    alert("✅ Contraseña actualizada correctamente en Firebase para " + docId);
+                    alert("✅ Datos actualizados correctamente en Firebase para " + (correoOriginal !== '---' ? correoOriginal : docId));
                     toggleEditModal();
                 }).catch(err => {
                     alert("❌ Error al guardar en Firebase: " + err.message);
