@@ -140,7 +140,7 @@ if not firebase_admin._apps:
 db = firestore.client()
 
 # ---------------------------------------------------------
-# 2. DETERMINAR SI ES REINTENTO INDIVIDUAL O GRUPO COMPLETO
+# 2. DETERMINAR MODO DE EJECUCIÓN
 # ---------------------------------------------------------
 grupo_a_ejecutar = "1"
 tipo_ejecucion = "Automática (Programada 08:00 AM)"
@@ -172,20 +172,7 @@ print(f"🚀 Iniciando: {detalle_ejecucion} [{tipo_ejecucion}]")
 enviar_correo_inicio(detalle_ejecucion, tipo_ejecucion)
 
 # ---------------------------------------------------------
-# 3. ACTUALIZAR ESTADO INICIAL EN MONITOREO
-# ---------------------------------------------------------
-db.collection("monitoreo").document("estado").set({
-    "en_proceso": True,
-    "tarea": tarea_texto,
-    "usuario_actual": "Iniciando servidor Chromium...",
-    "progreso": "0/0",
-    "porcentaje": 0,
-    "fallos_count": 0,
-    "ultima_actualizacion": firestore.SERVER_TIMESTAMP
-}, merge=True)
-
-# ---------------------------------------------------------
-# 4. OBTENER LECTURA DE TÉCNICOS DESDE FIREBASE
+# 3. OBTENER TÉCNICOS A PROCESAR
 # ---------------------------------------------------------
 tecnicos_ref = db.collection("tecnicos")
 lista_tecnicos = []
@@ -220,17 +207,19 @@ if total_tecnicos == 0:
         "usuario_actual": "---",
         "progreso": "Completado (0 técnicos)",
         "porcentaje": 100,
+        "eta_segundos": 0,
         "ultima_actualizacion": firestore.SERVER_TIMESTAMP
     }, merge=True)
     sys.exit(0)
 
 # ---------------------------------------------------------
-# 5. AUTOMATIZACIÓN DE LOGIN REAL EN HYUNDAI HTA
+# 4. AUTOMATIZACIÓN CON RETRY Y ETA
 # ---------------------------------------------------------
 usuarios_exitosos = []
 usuarios_fallidos = []
-
 URL_HTA = "https://hta.hyundai.com/"
+
+tiempo_promedio_por_usuario = 12  # Segundos promedio por login
 
 with sync_playwright() as p:
     browser = p.chromium.launch(headless=True)
@@ -240,10 +229,10 @@ with sync_playwright() as p:
         email = tec.get("usuario", doc_id)
         clave = tec.get("password", "Automotor*2026")
 
-        # Cálculo preciso de porcentaje de avance
         porcentaje_actual = int(((idx - 1) / total_tecnicos) * 100)
+        eta_segundos = (total_tecnicos - idx + 1) * tiempo_promedio_por_usuario
 
-        print(f"[{idx}/{total_tecnicos}] ({porcentaje_actual}%) Ejecutando autenticación real para: {email}")
+        print(f"[{idx}/{total_tecnicos}] ({porcentaje_actual}%) Procesando: {email} | ETA: {eta_segundos}s")
 
         db.collection("monitoreo").document("estado").set({
             "en_proceso": True,
@@ -251,83 +240,96 @@ with sync_playwright() as p:
             "usuario_actual": email,
             "progreso": f"{idx}/{total_tecnicos}",
             "porcentaje": porcentaje_actual,
+            "eta_segundos": eta_segundos,
             "fallos_count": len(usuarios_fallidos),
             "ultima_actualizacion": firestore.SERVER_TIMESTAMP
         }, merge=True)
 
-        context = browser.new_context(viewport={"width": 1920, "height": 1080})
-        page = context.new_page()
-        page.set_default_timeout(35000)
+        login_exitoso = False
+        ultimo_error = ""
 
-        try:
-            page.goto(URL_HTA, wait_until="domcontentloaded", timeout=40000)
-            page.wait_for_timeout(2000)
+        # SISTEMA DE AUTO-REINTENTO (Máximo 2 intentos por usuario)
+        for intento in range(1, 3):
+            context = browser.new_context(viewport={"width": 1920, "height": 1080})
+            page = context.new_page()
+            page.set_default_timeout(35000)
 
-            if page.is_visible("input[type='email']"):
-                page.fill("input[type='email']", email)
-            elif page.is_visible("input[name='username']"):
-                page.fill("input[name='username']", email)
-            elif page.is_visible("input[id*='user']"):
-                page.fill("input[id*='user']", email)
-            else:
-                page.fill("input[type='text']", email)
+            try:
+                page.goto(URL_HTA, wait_until="domcontentloaded", timeout=40000)
+                page.wait_for_timeout(2000)
 
-            if page.is_visible("input[type='password']"):
-                page.fill("input[type='password']", clave)
+                if page.is_visible("input[type='email']"):
+                    page.fill("input[type='email']", email)
+                elif page.is_visible("input[name='username']"):
+                    page.fill("input[name='username']", email)
+                elif page.is_visible("input[id*='user']"):
+                    page.fill("input[id*='user']", email)
+                else:
+                    page.fill("input[type='text']", email)
 
-            if page.is_visible("button[type='submit']"):
-                page.click("button[type='submit']")
-            elif page.is_visible("input[type='submit']"):
-                page.click("input[type='submit']")
-            elif page.is_visible(".btn-login"):
-                page.click(".btn-login")
-            else:
-                page.keyboard.press("Enter")
+                if page.is_visible("input[type='password']"):
+                    page.fill("input[type='password']", clave)
 
-            page.wait_for_timeout(5000)
+                if page.is_visible("button[type='submit']"):
+                    page.click("button[type='submit']")
+                elif page.is_visible("input[type='submit']"):
+                    page.click("input[type='submit']")
+                elif page.is_visible(".btn-login"):
+                    page.click(".btn-login")
+                else:
+                    page.keyboard.press("Enter")
 
-            html_pagina = page.content().lower()
-            if "login" in page.url.lower() and ("incorrect" in html_pagina or "invalid" in html_pagina or "error" in html_pagina or "fallo" in html_pagina):
-                raise Exception("Credenciales o contraseña rechazada por el portal HTA")
+                page.wait_for_timeout(5000)
 
-            tec_ref = db.collection("tecnicos").document(doc_id)
-            tec_ref.set({
-                "accesos_mes": firestore.Increment(1),
-                "ultimo_acceso": firestore.SERVER_TIMESTAMP
-            }, merge=True)
+                html_pagina = page.content().lower()
+                if "login" in page.url.lower() and ("incorrect" in html_pagina or "invalid" in html_pagina or "error" in html_pagina or "fallo" in html_pagina):
+                    raise Exception("Credenciales o contraseña rechazada por el portal HTA")
 
-            snap_actualizado = tec_ref.get()
-            conteo_nuevo = snap_actualizado.to_dict().get("accesos_mes", 1) if snap_actualizado.exists else 1
+                # ÉXITO
+                tec_ref = db.collection("tecnicos").document(doc_id)
+                tec_ref.set({
+                    "accesos_mes": firestore.Increment(1),
+                    "ultimo_acceso": firestore.SERVER_TIMESTAMP
+                }, merge=True)
 
-            usuarios_exitosos.append({
-                "email": email,
-                "accesos": conteo_nuevo
-            })
-            print(f"✅ Login REAL verificado en HTA: {email} | Total accesos: {conteo_nuevo}")
+                snap_actualizado = tec_ref.get()
+                conteo_nuevo = snap_actualizado.to_dict().get("accesos_mes", 1) if snap_actualizado.exists else 1
 
-        except Exception as e:
-            error_detalle = str(e)
-            if "Timeout" in error_detalle:
+                usuarios_exitosos.append({
+                    "email": email,
+                    "accesos": conteo_nuevo
+                })
+                print(f"✅ Login verificado en HTA: {email} | Accesos: {conteo_nuevo}")
+                login_exitoso = True
+                context.close()
+                break
+
+            except Exception as e:
+                ultimo_error = str(e)
+                context.close()
+                if intento == 1:
+                    print(f"⚠️ Intento 1 falló para {email}. Reintentando automáticamente en 2s...")
+                    time.sleep(2)
+
+        if not login_exitoso:
+            if "Timeout" in ultimo_error:
                 motivo = "El servidor HTA no respondió a tiempo (Timeout)"
-            elif "rechazada" in error_detalle:
+            elif "rechazada" in ultimo_error:
                 motivo = "Usuario o clave rechazada por el portal HTA"
             else:
-                motivo = f"Error en el flujo de ingreso: {error_detalle[:80]}"
+                motivo = f"Error en el flujo de ingreso: {ultimo_error[:80]}"
 
-            print(f"❌ Falló el login de {email}: {motivo}")
+            print(f"❌ Falló definitivamente {email}: {motivo}")
             usuarios_fallidos.append({
                 "email": email,
                 "motivo": motivo
             })
             db.collection("monitoreo").document("estado").set({"fallos_count": len(usuarios_fallidos)}, merge=True)
 
-        finally:
-            context.close()
-
     browser.close()
 
 # ---------------------------------------------------------
-# 6. FINALIZACIÓN Y ENVÍO DE REPORTE
+# 5. FINALIZACIÓN Y REPORTE
 # ---------------------------------------------------------
 db.collection("monitoreo").document("estado").set({
     "en_proceso": False,
@@ -335,9 +337,10 @@ db.collection("monitoreo").document("estado").set({
     "usuario_actual": "---",
     "progreso": f"Finalizado ({total_tecnicos}/{total_tecnicos})",
     "porcentaje": 100,
+    "eta_segundos": 0,
     "ultima_actualizacion": firestore.SERVER_TIMESTAMP
 }, merge=True)
 
-print("🎉 Proceso finalizado. Enviando reporte detallado...")
+print("🎉 Proceso finalizado. Enviando reporte...")
 enviar_reporte_final(detalle_ejecucion, tipo_ejecucion, usuarios_exitosos, usuarios_fallidos)
 print("🏁 Completado con éxito.")
