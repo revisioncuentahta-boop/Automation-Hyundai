@@ -174,7 +174,7 @@
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
 
-        // BASE DE DATOS DE NOMBRES Y UBICACIONES EXTRAÍDAS DEL ARCHIVO EXCEL
+        // MAPEO EXTRAÍDO DEL EXCEL
         const datosUsuariosExcel = {
             "mikicaballero89@gmail.com": {"nombre": "Jose Caballero", "ubicacion": "Taller Artigas"},
             "munhosmiguel1990@gmail.com": {"nombre": "Miguel Muñoz", "ubicacion": "Taller Optima"},
@@ -400,7 +400,6 @@
                 const emailKey = (u.usuario || u.id || "").toLowerCase().trim();
                 const infoExtra = datosUsuariosExcel[emailKey];
 
-                // Si se encuentra en la lista extra, se arma la cabecera con Nombre + Ubicación; si no, se salta nomás
                 let tituloUsuario = `<p class="text-xs font-bold text-slate-100">${u.usuario || u.id}</p>`;
                 if (infoExtra) {
                     tituloUsuario = `
