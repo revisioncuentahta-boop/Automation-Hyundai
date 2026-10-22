@@ -159,12 +159,16 @@ if manual_doc.exists:
         usuario_individual = datos_manuales.get("usuario_individual")
         grupo_a_ejecutar = str(datos_manuales.get("grupo", "1")).strip()
         tipo_ejecucion = "Manual (App Web)"
-        # Se resetea el flag en Firebase
         manual_doc_ref.update({"solicitado": False, "usuario_individual": None})
 
-detalle_ejecucion = f"Reintento Individual ({usuario_individual})" if usuario_individual else f"Grupo {grupo_a_ejecutar}"
+if usuario_individual:
+    detalle_ejecucion = f"Reintento Individual ({usuario_individual})"
+    tarea_texto = f"Reintento Individual de {usuario_individual}"
+else:
+    detalle_ejecucion = f"Grupo {grupo_a_ejecutar}"
+    tarea_texto = f"Automatización de Grupo {grupo_a_ejecutar}"
 
-print(f"🚀 Iniciando automatización REAL: {detalle_ejecucion} [{tipo_ejecucion}]")
+print(f"🚀 Iniciando: {detalle_ejecucion} [{tipo_ejecucion}]")
 enviar_correo_inicio(detalle_ejecucion, tipo_ejecucion)
 
 # ---------------------------------------------------------
@@ -172,8 +176,10 @@ enviar_correo_inicio(detalle_ejecucion, tipo_ejecucion)
 # ---------------------------------------------------------
 db.collection("monitoreo").document("estado").set({
     "en_proceso": True,
-    "usuario_actual": "Iniciando robot de login real...",
+    "tarea": tarea_texto,
+    "usuario_actual": "Iniciando servidor Chromium...",
     "progreso": "0/0",
+    "porcentaje": 0,
     "fallos_count": 0,
     "ultima_actualizacion": firestore.SERVER_TIMESTAMP
 }, merge=True)
@@ -185,22 +191,18 @@ tecnicos_ref = db.collection("tecnicos")
 lista_tecnicos = []
 
 if usuario_individual:
-    # 🎯 PROCESA ÚNICAMENTE AL TÉCNICO SOLICITADO EN REINTENTO INDIVIDUAL
     doc_single = tecnicos_ref.document(usuario_individual).get()
     if doc_single.exists:
         d = doc_single.to_dict()
         d["_doc_id"] = doc_single.id
         lista_tecnicos.append(d)
     else:
-        # Intenta buscar por el campo usuario
         q_single = tecnicos_ref.where(filter=FieldFilter("usuario", "==", usuario_individual)).limit(1).stream()
         for doc in q_single:
             d = doc.to_dict()
             d["_doc_id"] = doc.id
             lista_tecnicos.append(d)
-    print(f"🎯 Reintento individual enfocado exclusivamente en: {usuario_individual}")
 else:
-    # 📋 PROCESA A TODOS LOS TÉCNICOS ACTIVOS DEL GRUPO SELECCIONADO
     query = tecnicos_ref.where(filter=FieldFilter("grupo", "==", str(grupo_a_ejecutar))).where(filter=FieldFilter("activo", "==", True))
     docs = query.stream()
     for doc in docs:
@@ -214,8 +216,10 @@ print(f"📋 Se encontraron {total_tecnicos} técnico(s) para procesar.")
 if total_tecnicos == 0:
     db.collection("monitoreo").document("estado").set({
         "en_proceso": False,
+        "tarea": "Sin tareas activas",
         "usuario_actual": "---",
         "progreso": "Completado (0 técnicos)",
+        "porcentaje": 100,
         "ultima_actualizacion": firestore.SERVER_TIMESTAMP
     }, merge=True)
     sys.exit(0)
@@ -236,12 +240,17 @@ with sync_playwright() as p:
         email = tec.get("usuario", doc_id)
         clave = tec.get("password", "Automotor*2026")
 
-        print(f"[{idx}/{total_tecnicos}] Ejecutando autenticación real para: {email}")
+        # Cálculo preciso de porcentaje de avance
+        porcentaje_actual = int(((idx - 1) / total_tecnicos) * 100)
+
+        print(f"[{idx}/{total_tecnicos}] ({porcentaje_actual}%) Ejecutando autenticación real para: {email}")
 
         db.collection("monitoreo").document("estado").set({
             "en_proceso": True,
+            "tarea": tarea_texto,
             "usuario_actual": email,
             "progreso": f"{idx}/{total_tecnicos}",
+            "porcentaje": porcentaje_actual,
             "fallos_count": len(usuarios_fallidos),
             "ultima_actualizacion": firestore.SERVER_TIMESTAMP
         }, merge=True)
@@ -251,11 +260,9 @@ with sync_playwright() as p:
         page.set_default_timeout(35000)
 
         try:
-            # A. Navegar a la página de login
             page.goto(URL_HTA, wait_until="domcontentloaded", timeout=40000)
             page.wait_for_timeout(2000)
 
-            # B. Identificar e ingresar el campo de Usuario / Correo
             if page.is_visible("input[type='email']"):
                 page.fill("input[type='email']", email)
             elif page.is_visible("input[name='username']"):
@@ -265,11 +272,9 @@ with sync_playwright() as p:
             else:
                 page.fill("input[type='text']", email)
 
-            # C. Ingresar la Contraseña
             if page.is_visible("input[type='password']"):
                 page.fill("input[type='password']", clave)
 
-            # D. Hacer clic en el botón de Iniciar Sesión / Login
             if page.is_visible("button[type='submit']"):
                 page.click("button[type='submit']")
             elif page.is_visible("input[type='submit']"):
@@ -279,15 +284,12 @@ with sync_playwright() as p:
             else:
                 page.keyboard.press("Enter")
 
-            # E. Esperar el procesamiento de la plataforma
             page.wait_for_timeout(5000)
 
-            # F. Validar si el portal devolvió un error de autenticación
             html_pagina = page.content().lower()
             if "login" in page.url.lower() and ("incorrect" in html_pagina or "invalid" in html_pagina or "error" in html_pagina or "fallo" in html_pagina):
                 raise Exception("Credenciales o contraseña rechazada por el portal HTA")
 
-            # --- SI SUPERA LAS VALIDACIONES, EL LOGIN FUE EXITOSO ---
             tec_ref = db.collection("tecnicos").document(doc_id)
             tec_ref.set({
                 "accesos_mes": firestore.Increment(1),
@@ -329,8 +331,10 @@ with sync_playwright() as p:
 # ---------------------------------------------------------
 db.collection("monitoreo").document("estado").set({
     "en_proceso": False,
+    "tarea": f"Completado: {tarea_texto}",
     "usuario_actual": "---",
     "progreso": f"Finalizado ({total_tecnicos}/{total_tecnicos})",
+    "porcentaje": 100,
     "ultima_actualizacion": firestore.SERVER_TIMESTAMP
 }, merge=True)
 
